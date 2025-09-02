@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = [
+    "./bevy_hookup_core",
+    "./bevy_hookup_messager_self",
+    "./examples/basic"
+]

@@ -1,0 +1,9 @@
+[package]
+name = "bevy_hookup_messager_self"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.16.1" }
+bevy_hookup_core = { path = "../bevy_hookup_core" }
+crossbeam = "0.8.4"
