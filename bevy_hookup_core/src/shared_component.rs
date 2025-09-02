@@ -1,14 +1,16 @@
 use bevy::prelude::*;
 
+use crate::external_entity::ExternalEntity;
+
 #[derive(Reflect, Component, Deref, DerefMut)]
 pub struct SharedComponent<T> {
     #[deref]
     pub inner: T,
-    pub external_entity: Entity,
+    pub external_entity: ExternalEntity,
 }
 
 impl<T> SharedComponent<T> {
-    pub fn new(inner: T, external_entity: Entity) -> Self {
+    pub fn new(inner: T, external_entity: ExternalEntity) -> Self {
         Self {
             inner,
             external_entity,

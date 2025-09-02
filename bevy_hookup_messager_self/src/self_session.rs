@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_hookup_core::{
+    external_entity::ExternalEntity,
     hook_session::{SessionId, SessionMessager},
     session::{AddedData, RemovedData, SessionChannels, UpdatedData},
 };
@@ -27,7 +28,7 @@ impl<TSendables> SessionMessager<TSendables> for SelfSession {
             .0
             .try_send(AddedData {
                 component_data,
-                entity,
+                entity: ExternalEntity::new(entity, self.session_id),
             })
             .expect("Unbounded");
     }
@@ -44,7 +45,7 @@ impl<TSendables> SessionMessager<TSendables> for SelfSession {
             .0
             .try_send(UpdatedData {
                 component_data,
-                entity,
+                entity: ExternalEntity::new(entity, self.session_id),
             })
             .expect("Unbounded");
     }
@@ -54,7 +55,9 @@ impl<TSendables> SessionMessager<TSendables> for SelfSession {
         channels
             .removed
             .0
-            .try_send(RemovedData { entity })
+            .try_send(RemovedData {
+                entity: ExternalEntity::new(entity, self.session_id),
+            })
             .expect("Unbounded");
     }
 }

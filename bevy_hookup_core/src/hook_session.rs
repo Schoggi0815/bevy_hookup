@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::session::SessionChannels;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Reflect, Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct SessionId(pub i32);
 
 pub trait SessionMessager<TSendables> {

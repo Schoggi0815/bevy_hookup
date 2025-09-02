@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
-use crate::hook_session::SessionMessager;
+use crate::{external_entity::ExternalEntity, hook_session::SessionMessager};
 
 pub struct Session<TSendables> {
     messager: Box<dyn SessionMessager<TSendables> + Send + Sync>,
@@ -49,14 +49,14 @@ pub struct SessionChannels<TSendables> {
 
 pub struct AddedData<TSendables> {
     pub component_data: TSendables,
-    pub entity: Entity,
+    pub entity: ExternalEntity,
 }
 
 pub struct UpdatedData<TSendables> {
     pub component_data: TSendables,
-    pub entity: Entity,
+    pub entity: ExternalEntity,
 }
 
 pub struct RemovedData {
-    pub entity: Entity,
+    pub entity: ExternalEntity,
 }

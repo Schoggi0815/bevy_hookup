@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct HookupPlugin<
+pub struct HookupComponentPlugin<
     TSendables: Send + Sync + 'static,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 > {
@@ -19,17 +19,16 @@ pub struct HookupPlugin<
 impl<
     TSendables: 'static + Send + Sync,
     TComponent: SendableComponent<TSendables> + 'static + Send + Sync,
-> Plugin for HookupPlugin<TSendables, TComponent>
+> Plugin for HookupComponentPlugin<TSendables, TComponent>
 {
     fn build(&self, app: &mut bevy::app::App) {
-        app.insert_resource(SessionHandler::<TSendables>::new())
-            .add_systems(
-                FixedUpdate,
-                (
-                    send_owned::<TSendables, TComponent>,
-                    check_sessions::<TSendables, TComponent>,
-                ),
-            );
+        app.add_systems(
+            FixedUpdate,
+            (
+                send_owned::<TSendables, TComponent>,
+                check_sessions::<TSendables, TComponent>,
+            ),
+        );
     }
 }
 
