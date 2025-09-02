@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     owner_component::Owner, sendable_component::SendableComponent, session_handler::SessionHandler,
-    shared_component::SharedComponent,
+    shared::Shared,
 };
 
 #[derive(Default)]
@@ -26,7 +26,7 @@ impl<
             FixedUpdate,
             (
                 send_owned::<TSendables, TComponent>,
-                check_sessions::<TSendables, TComponent>,
+                check_session_channels::<TSendables, TComponent>,
             ),
         );
     }
@@ -61,12 +61,12 @@ fn send_owned<
     }
 }
 
-pub fn check_sessions<
+pub fn check_session_channels<
     TSendables: Send + Sync + 'static,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 >(
     session_handler: ResMut<SessionHandler<TSendables>>,
-    mut shared_components: Query<(Entity, &mut SharedComponent<TComponent>)>,
+    mut shared_components: Query<(Entity, &mut Shared<TComponent>)>,
     mut commands: Commands,
 ) {
     for session in session_handler.get_sessions() {
@@ -76,7 +76,7 @@ pub fn check_sessions<
                 continue;
             };
 
-            commands.spawn(SharedComponent::new(sended_component, added_message.entity));
+            commands.spawn(Shared::new(sended_component, added_message.entity));
         }
         for updated_message in session.channels.updated.1.try_iter() {
             let Some(sended_component) = TComponent::from_sendable(updated_message.component_data)

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_hookup_core::{
     hookup_component_plugin::HookupComponentPlugin, hookup_sendable_plugin::HookupSendablePlugin,
-    owner_component::Owner, session_handler::SessionHandler, shared_component::SharedComponent,
+    owner_component::Owner, session_handler::SessionHandler, shared::Shared,
 };
 use bevy_hookup_messager_self::self_session::SelfSession;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
@@ -14,7 +14,7 @@ mod test_component;
 fn main() {
     App::new()
         .register_type::<Owner<TestComponent>>()
-        .register_type::<SharedComponent<TestComponent>>()
+        .register_type::<Shared<TestComponent>>()
         .add_plugins((
             DefaultPlugins,
             HookupSendablePlugin::<Sendables>::default(),
