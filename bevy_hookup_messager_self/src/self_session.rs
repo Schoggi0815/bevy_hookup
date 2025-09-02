@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_hookup_core::{
-    hook_session::{SessionId, SessionMessanger},
+    hook_session::{SessionId, SessionMessager},
     session::{AddedData, RemovedData, SessionChannels, UpdatedData},
 };
 
@@ -14,7 +14,7 @@ impl SelfSession {
     }
 }
 
-impl<TSendables> SessionMessanger<TSendables> for SelfSession {
+impl<TSendables> SessionMessager<TSendables> for SelfSession {
     fn component_added(
         &self,
         channels: &SessionChannels<TSendables>,

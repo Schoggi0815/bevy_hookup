@@ -1,17 +1,17 @@
 use bevy::prelude::*;
 use crossbeam::channel::{Receiver, Sender, unbounded};
 
-use crate::hook_session::SessionMessanger;
+use crate::hook_session::SessionMessager;
 
 pub struct Session<TSendables> {
-    messanger: Box<dyn SessionMessanger<TSendables> + Send + Sync>,
+    messager: Box<dyn SessionMessager<TSendables> + Send + Sync>,
     pub channels: SessionChannels<TSendables>,
 }
 
 impl<TSendables> Session<TSendables> {
-    pub fn new(messanger: Box<dyn SessionMessanger<TSendables> + Send + Sync>) -> Self {
+    pub fn new(messager: Box<dyn SessionMessager<TSendables> + Send + Sync>) -> Self {
         Self {
-            messanger,
+            messager,
             channels: SessionChannels {
                 added: unbounded(),
                 updated: unbounded(),
@@ -21,17 +21,17 @@ impl<TSendables> Session<TSendables> {
     }
 
     pub fn component_added(&self, entity: Entity, component_data: TSendables) {
-        self.messanger
+        self.messager
             .component_added(&self.channels, entity, component_data);
     }
 
     pub fn componend_updated(&self, entity: Entity, component_data: TSendables) {
-        self.messanger
+        self.messager
             .componend_updated(&self.channels, entity, component_data);
     }
 
     pub fn component_removed(&self, entity: Entity) {
-        self.messanger.component_removed(&self.channels, entity);
+        self.messager.component_removed(&self.channels, entity);
     }
 }
 
