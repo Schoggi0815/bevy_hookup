@@ -8,13 +8,25 @@ use crate::{
     sync_entity::SyncEntity,
 };
 
-#[derive(Default)]
 pub struct HookupComponentPlugin<
     TSendables: Send + Sync + 'static,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 > {
     _phantom: PhantomData<TSendables>,
     _phantom_component: PhantomData<TComponent>,
+}
+
+impl<
+    TSendables: Send + Sync + 'static,
+    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+> Default for HookupComponentPlugin<TSendables, TComponent>
+{
+    fn default() -> Self {
+        Self {
+            _phantom: Default::default(),
+            _phantom_component: Default::default(),
+        }
+    }
 }
 
 impl<

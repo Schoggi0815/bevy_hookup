@@ -8,9 +8,16 @@ use crate::{
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
 
-#[derive(Default)]
 pub struct HookupEntityPlugin<TSendables: Send + Sync + 'static> {
     _phantom_sendable: PhantomData<TSendables>,
+}
+
+impl<TSendables: Send + Sync + 'static> Default for HookupEntityPlugin<TSendables> {
+    fn default() -> Self {
+        Self {
+            _phantom_sendable: Default::default(),
+        }
+    }
 }
 
 impl<TSendables: Send + Sync + 'static> Plugin for HookupEntityPlugin<TSendables> {
