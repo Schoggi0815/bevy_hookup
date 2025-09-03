@@ -4,7 +4,7 @@ use bevy_hookup_core::{
     owner_component::Owner, session_handler::SessionHandler, shared::Shared,
     sync_entity::SyncEntityOwner,
 };
-use bevy_hookup_messenger_self::self_session::SelfSession;
+use bevy_hookup_messenger_tcp::tcp_session::TcpSession;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{
@@ -30,17 +30,22 @@ fn main() {
             WorldInspectorPlugin::new(),
         ))
         .add_systems(Startup, setup)
+        .add_systems(Update, spawn_entity)
         .run();
 }
 
 fn setup(mut commands: Commands, mut session_handler: ResMut<SessionHandler<Sendables>>) {
-    session_handler.add_session(SelfSession::new);
+    session_handler.add_session(TcpSession::new());
 
     commands.spawn(Camera3d::default());
+}
 
-    commands.spawn((
-        SyncEntityOwner::new(),
-        Owner::new(TestComponent { test_field: 2 }),
-        Owner::new(TestComponent2 { test_field: 4 }),
-    ));
+fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
+    if input.just_pressed(KeyCode::Space) {
+        commands.spawn((
+            SyncEntityOwner::new(),
+            Owner::new(TestComponent { test_field: 2 }),
+            Owner::new(TestComponent2 { test_field: 4 }),
+        ));
+    }
 }

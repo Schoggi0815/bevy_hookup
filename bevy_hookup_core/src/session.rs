@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use crossbeam::channel::{Receiver, Sender, unbounded};
+use crossbeam::channel::{Receiver, Sender};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     external_component::ExternalComponent, hook_session::SessionMessenger, sync_id::SyncId,
@@ -11,28 +12,26 @@ pub struct Session<TSendables> {
 }
 
 impl<TSendables> Session<TSendables> {
-    pub fn new(messenger: Box<dyn SessionMessenger<TSendables> + Send + Sync>) -> Self {
+    pub fn new(
+        messenger: Box<dyn SessionMessenger<TSendables> + Send + Sync>,
+        channels: SessionChannels<TSendables>,
+    ) -> Self {
         Self {
             messenger,
-            channels: SessionChannels {
-                entity: unbounded(),
-                added: unbounded(),
-                updated: unbounded(),
-                removed: unbounded(),
-            },
+            channels,
         }
     }
 
-    pub fn entity_added(&self, sync_id: SyncId) {
+    pub fn entity_added(&mut self, sync_id: SyncId) {
         self.messenger.entity_added(&self.channels, sync_id);
     }
 
-    pub fn entity_removed(&self, sync_id: SyncId) {
+    pub fn entity_removed(&mut self, sync_id: SyncId) {
         self.messenger.entity_removed(&self.channels, sync_id);
     }
 
     pub fn component_added(
-        &self,
+        &mut self,
         external_component: ExternalComponent,
         component_data: TSendables,
     ) {
@@ -41,7 +40,7 @@ impl<TSendables> Session<TSendables> {
     }
 
     pub fn componend_updated(
-        &self,
+        &mut self,
         external_component: ExternalComponent,
         component_data: TSendables,
     ) {
@@ -49,12 +48,13 @@ impl<TSendables> Session<TSendables> {
             .componend_updated(&self.channels, external_component, component_data);
     }
 
-    pub fn component_removed(&self, external_component: ExternalComponent) {
+    pub fn component_removed(&mut self, external_component: ExternalComponent) {
         self.messenger
             .component_removed(&self.channels, external_component);
     }
 }
 
+#[derive(Clone)]
 pub struct SessionChannels<TSendables> {
     pub entity: (Sender<EntityActions>, Receiver<EntityActions>),
     pub added: (
@@ -68,21 +68,25 @@ pub struct SessionChannels<TSendables> {
     pub removed: (Sender<RemovedData>, Receiver<RemovedData>),
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum EntityActions {
     Add(SyncId),
     Remove(SyncId),
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct AddedData<TSendables> {
     pub component_data: TSendables,
     pub external_component: ExternalComponent,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct UpdatedData<TSendables> {
     pub component_data: TSendables,
     pub external_component: ExternalComponent,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct RemovedData {
     pub external_component: ExternalComponent,
 }

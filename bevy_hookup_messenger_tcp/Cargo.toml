@@ -1,0 +1,11 @@
+[package]
+name = "bevy_hookup_messenger_tcp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.16.1" }
+bevy_hookup_core = { path = "../bevy_hookup_core" }
+bincode = { version = "2.0.1", features = ["serde"] }
+crossbeam = "0.8.4"
+serde = "1.0.219"

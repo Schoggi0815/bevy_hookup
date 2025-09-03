@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyncId(u64);
 
 impl Default for SyncId {

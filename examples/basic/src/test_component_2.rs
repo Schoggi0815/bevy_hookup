@@ -1,9 +1,10 @@
 use bevy::reflect::Reflect;
 use bevy_hookup_core::sendable_component::SendableComponent;
+use serde::{Deserialize, Serialize};
 
 use crate::all_sendables::Sendables;
 
-#[derive(Default, Clone, Copy, Reflect)]
+#[derive(Default, Clone, Copy, Reflect, Serialize, Deserialize)]
 pub struct TestComponent2 {
     pub test_field: i32,
 }

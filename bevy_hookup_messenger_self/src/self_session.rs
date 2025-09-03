@@ -5,19 +5,29 @@ use bevy_hookup_core::{
     session::{AddedData, EntityActions, RemovedData, SessionChannels, UpdatedData},
     sync_id::SyncId,
 };
+use crossbeam::channel::unbounded;
 
-pub struct SelfSession {
+pub struct SelfSession<TSendables: Clone> {
     session_id: SessionId,
+    channels: SessionChannels<TSendables>,
 }
 
-impl SelfSession {
-    pub fn new(session_id: SessionId) -> Self {
-        Self { session_id }
+impl<TSendables: Clone> SelfSession<TSendables> {
+    pub fn new() -> Self {
+        Self {
+            session_id: SessionId::default(),
+            channels: SessionChannels {
+                added: unbounded(),
+                entity: unbounded(),
+                removed: unbounded(),
+                updated: unbounded(),
+            },
+        }
     }
 }
 
-impl<TSendables> SessionMessenger<TSendables> for SelfSession {
-    fn entity_added(&self, channels: &SessionChannels<TSendables>, sync_id: SyncId) {
+impl<TSendables: Clone> SessionMessenger<TSendables> for SelfSession<TSendables> {
+    fn entity_added(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId) {
         info!("Entity Added!");
         channels
             .entity
@@ -26,7 +36,7 @@ impl<TSendables> SessionMessenger<TSendables> for SelfSession {
             .expect("Unbounded");
     }
 
-    fn entity_removed(&self, channels: &SessionChannels<TSendables>, sync_id: SyncId) {
+    fn entity_removed(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId) {
         info!("Entity Removed!");
         channels
             .entity
@@ -36,7 +46,7 @@ impl<TSendables> SessionMessenger<TSendables> for SelfSession {
     }
 
     fn component_added(
-        &self,
+        &mut self,
         channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
         component_data: TSendables,
@@ -53,7 +63,7 @@ impl<TSendables> SessionMessenger<TSendables> for SelfSession {
     }
 
     fn componend_updated(
-        &self,
+        &mut self,
         channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
         component_data: TSendables,
@@ -70,7 +80,7 @@ impl<TSendables> SessionMessenger<TSendables> for SelfSession {
     }
 
     fn component_removed(
-        &self,
+        &mut self,
         channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
     ) {
@@ -80,5 +90,13 @@ impl<TSendables> SessionMessenger<TSendables> for SelfSession {
             .0
             .try_send(RemovedData { external_component })
             .expect("Unbounded");
+    }
+
+    fn get_session_id(&self) -> SessionId {
+        self.session_id
+    }
+
+    fn get_channels(&self) -> SessionChannels<TSendables> {
+        self.channels.clone()
     }
 }

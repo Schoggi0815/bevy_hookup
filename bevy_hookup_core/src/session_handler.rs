@@ -10,30 +10,28 @@ use crate::{
 #[derive(Resource)]
 pub struct SessionHandler<TSendables> {
     sessions: HashMap<SessionId, Session<TSendables>>,
-    current_id: i32,
 }
 
-impl<TSendables> SessionHandler<TSendables> {
+impl<TSendables: Clone> SessionHandler<TSendables> {
     pub fn new() -> Self {
         Self {
             sessions: HashMap::new(),
-            current_id: 0,
         }
     }
 
-    pub fn add_session<F, TSession>(&mut self, session_builder: F)
+    pub fn add_session<TSession>(&mut self, session: TSession)
     where
-        F: Fn(SessionId) -> TSession,
         TSession: SessionMessenger<TSendables> + Send + Sync + 'static,
     {
+        let channels = session.get_channels();
+
         self.sessions.insert(
-            SessionId(self.current_id),
-            Session::new(Box::new(session_builder(SessionId(self.current_id)))),
+            session.get_session_id(),
+            Session::new(Box::new(session), channels),
         );
-        self.current_id += 1;
     }
 
-    pub fn get_sessions(&self) -> impl Iterator<Item = &Session<TSendables>> {
-        self.sessions.values()
+    pub fn get_sessions(&mut self) -> impl Iterator<Item = &mut Session<TSendables>> {
+        self.sessions.values_mut()
     }
 }

@@ -8,11 +8,11 @@ use crate::{
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
 
-pub struct HookupEntityPlugin<TSendables: Send + Sync + 'static> {
+pub struct HookupEntityPlugin<TSendables: Send + Sync + 'static + Clone> {
     _phantom_sendable: PhantomData<TSendables>,
 }
 
-impl<TSendables: Send + Sync + 'static> Default for HookupEntityPlugin<TSendables> {
+impl<TSendables: Send + Sync + 'static + Clone> Default for HookupEntityPlugin<TSendables> {
     fn default() -> Self {
         Self {
             _phantom_sendable: Default::default(),
@@ -20,12 +20,12 @@ impl<TSendables: Send + Sync + 'static> Default for HookupEntityPlugin<TSendable
     }
 }
 
-impl<TSendables: Send + Sync + 'static> Plugin for HookupEntityPlugin<TSendables> {
+impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TSendables> {
     fn build(&self, app: &mut bevy::app::App) {
         app.register_type::<SyncEntity>()
             .register_type::<SyncEntityOwner>()
             .add_systems(
-                FixedUpdate,
+                FixedPreUpdate,
                 (
                     send_entites::<TSendables>,
                     check_entity_channel::<TSendables>,
@@ -34,8 +34,8 @@ impl<TSendables: Send + Sync + 'static> Plugin for HookupEntityPlugin<TSendables
     }
 }
 
-fn send_entites<TSendables: Send + Sync + 'static>(
-    session_handler: ResMut<SessionHandler<TSendables>>,
+fn send_entites<TSendables: Send + Sync + 'static + Clone>(
+    mut session_handler: ResMut<SessionHandler<TSendables>>,
     sync_entities_added: Query<&SyncEntity, Added<SyncEntityOwner>>,
     sync_entities_changed: Query<(Entity, &SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
     mut commands: Commands,
@@ -59,8 +59,8 @@ fn send_entites<TSendables: Send + Sync + 'static>(
     }
 }
 
-fn check_entity_channel<TSendables: Send + Sync + 'static>(
-    session_handler: ResMut<SessionHandler<TSendables>>,
+fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
+    mut session_handler: ResMut<SessionHandler<TSendables>>,
     mut commands: Commands,
     sync_entities: Query<(Entity, &SyncEntity)>,
 ) {

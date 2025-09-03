@@ -3,25 +3,33 @@ use bevy::prelude::*;
 use crate::{external_component::ExternalComponent, session::SessionChannels, sync_id::SyncId};
 
 #[derive(Reflect, Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct SessionId(pub i32);
+pub struct SessionId(u64);
+
+impl Default for SessionId {
+    fn default() -> Self {
+        Self(rand::random())
+    }
+}
 
 pub trait SessionMessenger<TSendables> {
-    fn entity_added(&self, channels: &SessionChannels<TSendables>, sync_id: SyncId);
-    fn entity_removed(&self, channels: &SessionChannels<TSendables>, sync_id: SyncId);
+    fn get_session_id(&self) -> SessionId;
+    fn get_channels(&self) -> SessionChannels<TSendables>;
+    fn entity_added(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId);
+    fn entity_removed(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId);
     fn component_added(
-        &self,
+        &mut self,
         channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
         component_data: TSendables,
     );
     fn componend_updated(
-        &self,
+        &mut self,
         channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
         component_data: TSendables,
     );
     fn component_removed(
-        &self,
+        &mut self,
         channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
     );

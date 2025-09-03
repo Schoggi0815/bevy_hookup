@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub struct HookupComponentPlugin<
-    TSendables: Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 > {
     _phantom: PhantomData<TSendables>,
@@ -17,7 +17,7 @@ pub struct HookupComponentPlugin<
 }
 
 impl<
-    TSendables: Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 > Default for HookupComponentPlugin<TSendables, TComponent>
 {
@@ -30,7 +30,7 @@ impl<
 }
 
 impl<
-    TSendables: 'static + Send + Sync,
+    TSendables: 'static + Send + Sync + Clone,
     TComponent: SendableComponent<TSendables> + 'static + Send + Sync,
 > Plugin for HookupComponentPlugin<TSendables, TComponent>
 {
@@ -46,11 +46,11 @@ impl<
 }
 
 fn send_owned<
-    TSendables: Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 >(
     owned_components: Query<(Ref<Owner<TComponent>>, Entity, &SyncEntity)>,
-    session_handler: Res<SessionHandler<TSendables>>,
+    mut session_handler: ResMut<SessionHandler<TSendables>>,
     mut commands: Commands,
 ) {
     for (owned_component, owned_entity, sync_entity) in owned_components {
@@ -79,18 +79,21 @@ fn send_owned<
 }
 
 pub fn check_session_channels<
-    TSendables: Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 >(
-    session_handler: ResMut<SessionHandler<TSendables>>,
+    mut session_handler: ResMut<SessionHandler<TSendables>>,
     sync_entites: Query<(Entity, &SyncEntity)>,
     mut shared_components: Query<(Entity, &mut Shared<TComponent>)>,
     mut commands: Commands,
 ) {
     for session in session_handler.get_sessions() {
+        let mut skipped_added = Vec::new();
         for added_message in session.channels.added.1.try_iter() {
-            let Some(sended_component) = TComponent::from_sendable(added_message.component_data)
+            let Some(sended_component) =
+                TComponent::from_sendable(added_message.component_data.clone())
             else {
+                skipped_added.push(added_message);
                 continue;
             };
 
@@ -106,9 +109,15 @@ pub fn check_session_channels<
                 added_message.external_component.component_id,
             ));
         }
+        skipped_added
+            .into_iter()
+            .for_each(|sa| session.channels.added.0.try_send(sa).expect("Unbounded"));
+        let mut skipped_updated = Vec::new();
         for updated_message in session.channels.updated.1.try_iter() {
-            let Some(sended_component) = TComponent::from_sendable(updated_message.component_data)
+            let Some(sended_component) =
+                TComponent::from_sendable(updated_message.component_data.clone())
             else {
+                skipped_updated.push(updated_message);
                 continue;
             };
 
@@ -121,15 +130,23 @@ pub fn check_session_channels<
 
             shared_component.update_inner(sended_component);
         }
+        skipped_updated
+            .into_iter()
+            .for_each(|su| session.channels.updated.0.try_send(su).expect("Unbounded"));
+        let mut skipped_removed = Vec::new();
         for removed_message in session.channels.removed.1.try_iter() {
-            let Some((sync_entity, _)) = sync_entites
+            let Some((sync_entity, _)) = shared_components
                 .iter()
-                .find(|se| se.1.sync_id == removed_message.external_component.entity_id)
+                .find(|sc| sc.1.component_id == removed_message.external_component.component_id)
             else {
+                skipped_removed.push(removed_message);
                 continue;
             };
 
             commands.entity(sync_entity).remove::<Shared<TComponent>>();
         }
+        skipped_removed
+            .into_iter()
+            .for_each(|sr| session.channels.removed.0.try_send(sr).expect("Unbounded"));
     }
 }
