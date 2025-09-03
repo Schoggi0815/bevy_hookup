@@ -6,6 +6,7 @@ use crate::{
     external_component::ExternalComponent, hook_session::SessionMessenger, sync_id::SyncId,
 };
 
+#[derive(Component)]
 pub struct Session<TSendables> {
     messenger: Box<dyn SessionMessenger<TSendables> + Send + Sync>,
     pub channels: SessionChannels<TSendables>,

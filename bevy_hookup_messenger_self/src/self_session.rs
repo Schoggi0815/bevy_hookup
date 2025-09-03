@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_hookup_core::{
     external_component::ExternalComponent,
     hook_session::{SessionId, SessionMessenger},
-    session::{AddedData, EntityActions, RemovedData, SessionChannels, UpdatedData},
+    session::{AddedData, EntityActions, RemovedData, Session, SessionChannels, UpdatedData},
     sync_id::SyncId,
 };
 use crossbeam::channel::unbounded;
@@ -26,7 +26,14 @@ impl<TSendables: Clone> SelfSession<TSendables> {
     }
 }
 
-impl<TSendables: Clone> SessionMessenger<TSendables> for SelfSession<TSendables> {
+impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
+    for SelfSession<TSendables>
+{
+    fn to_session(self) -> Session<TSendables> {
+        let channels = self.channels.clone();
+        Session::new(Box::new(self), channels)
+    }
+
     fn entity_added(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId) {
         info!("Entity Added!");
         channels

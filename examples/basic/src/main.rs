@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use bevy_hookup_core::{
-    hookup_component_plugin::HookupComponentPlugin, hookup_sendable_plugin::HookupSendablePlugin,
-    owner_component::Owner, session_handler::SessionHandler, shared::Shared,
+    hook_session::SessionMessenger, hookup_component_plugin::HookupComponentPlugin,
+    hookup_sendable_plugin::HookupSendablePlugin, owner_component::Owner, shared::Shared,
     sync_entity::SyncEntityOwner,
 };
-use bevy_hookup_messenger_tcp::tcp_session::TcpSession;
+use bevy_hookup_messenger_self::self_session::SelfSession;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{
@@ -34,8 +34,8 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, mut session_handler: ResMut<SessionHandler<Sendables>>) {
-    session_handler.add_session(TcpSession::new());
+fn setup(mut commands: Commands) {
+    commands.spawn(SelfSession::<Sendables>::new().to_session());
 
     commands.spawn(Camera3d::default());
 }

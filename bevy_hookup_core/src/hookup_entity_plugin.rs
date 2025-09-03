@@ -3,8 +3,7 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
-    session::EntityActions,
-    session_handler::SessionHandler,
+    session::{EntityActions, Session},
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
 
@@ -35,13 +34,13 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
 }
 
 fn send_entites<TSendables: Send + Sync + 'static + Clone>(
-    mut session_handler: ResMut<SessionHandler<TSendables>>,
+    mut sessions: Query<&mut Session<TSendables>>,
     sync_entities_added: Query<&SyncEntity, Added<SyncEntityOwner>>,
     sync_entities_changed: Query<(Entity, &SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
     mut commands: Commands,
 ) {
     for added_entity in sync_entities_added {
-        for session in session_handler.get_sessions() {
+        for mut session in sessions.iter_mut() {
             session.entity_added(added_entity.sync_id);
         }
     }
@@ -51,7 +50,7 @@ fn send_entites<TSendables: Send + Sync + 'static + Clone>(
             continue;
         }
 
-        for session in session_handler.get_sessions() {
+        for mut session in sessions.iter_mut() {
             session.entity_removed(changed_sync.sync_id);
         }
 
@@ -60,11 +59,11 @@ fn send_entites<TSendables: Send + Sync + 'static + Clone>(
 }
 
 fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
-    mut session_handler: ResMut<SessionHandler<TSendables>>,
+    sessions: Query<&Session<TSendables>>,
     mut commands: Commands,
     sync_entities: Query<(Entity, &SyncEntity)>,
 ) {
-    for session in session_handler.get_sessions() {
+    for session in sessions {
         for entity_action in session.channels.entity.1.try_iter() {
             match entity_action {
                 EntityActions::Add(sync_id) => {

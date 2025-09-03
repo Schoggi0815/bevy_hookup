@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 
-use crate::{external_component::ExternalComponent, session::SessionChannels, sync_id::SyncId};
+use crate::{
+    external_component::ExternalComponent,
+    session::{Session, SessionChannels},
+    sync_id::SyncId,
+};
 
 #[derive(Reflect, Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct SessionId(u64);
@@ -12,6 +16,7 @@ impl Default for SessionId {
 }
 
 pub trait SessionMessenger<TSendables> {
+    fn to_session(self) -> Session<TSendables>;
     fn get_session_id(&self) -> SessionId;
     fn get_channels(&self) -> SessionChannels<TSendables>;
     fn entity_added(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId);
