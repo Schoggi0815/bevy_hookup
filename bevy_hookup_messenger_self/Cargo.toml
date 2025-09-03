@@ -1,5 +1,5 @@
 [package]
-name = "bevy_hookup_messager_self"
+name = "bevy_hookup_messenger_self"
 version = "0.1.0"
 edition = "2024"
 

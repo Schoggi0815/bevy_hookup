@@ -2,8 +2,9 @@ use bevy::prelude::*;
 use bevy_hookup_core::{
     hookup_component_plugin::HookupComponentPlugin, hookup_sendable_plugin::HookupSendablePlugin,
     owner_component::Owner, session_handler::SessionHandler, shared::Shared,
+    sync_entity::SyncEntityOwner,
 };
-use bevy_hookup_messager_self::self_session::SelfSession;
+use bevy_hookup_messenger_self::self_session::SelfSession;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{all_sendables::Sendables, test_component::TestComponent};
@@ -31,5 +32,8 @@ fn setup(mut commands: Commands, mut session_handler: ResMut<SessionHandler<Send
 
     commands.spawn(Camera3d::default());
 
-    commands.spawn((Owner::new(TestComponent { test_field: 2 }),));
+    commands.spawn((
+        SyncEntityOwner::new(),
+        Owner::<TestComponent>::new(TestComponent { test_field: 2 }),
+    ));
 }

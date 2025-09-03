@@ -1,19 +1,19 @@
 use bevy::prelude::*;
 
-use crate::external_entity::ExternalEntity;
+use crate::sync_id::SyncId;
 
 #[derive(Reflect, Component, Deref, DerefMut)]
 pub struct Shared<T> {
     #[deref]
     pub inner: T,
-    pub external_entity: ExternalEntity,
+    pub component_id: SyncId,
 }
 
 impl<T> Shared<T> {
-    pub fn new(inner: T, external_entity: ExternalEntity) -> Self {
+    pub fn new(inner: T, component_id: SyncId) -> Self {
         Self {
             inner,
-            external_entity,
+            component_id,
         }
     }
 

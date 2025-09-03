@@ -2,6 +2,6 @@
 resolver = "3"
 members = [
     "./bevy_hookup_core",
-    "./bevy_hookup_messager_self",
+    "./bevy_hookup_messenger_self",
     "./examples/basic"
 ]

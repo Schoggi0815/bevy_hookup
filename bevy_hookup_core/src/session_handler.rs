@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::{
-    hook_session::{SessionId, SessionMessager},
+    hook_session::{SessionId, SessionMessenger},
     session::Session,
 };
 
@@ -24,7 +24,7 @@ impl<TSendables> SessionHandler<TSendables> {
     pub fn add_session<F, TSession>(&mut self, session_builder: F)
     where
         F: Fn(SessionId) -> TSession,
-        TSession: SessionMessager<TSendables> + Send + Sync + 'static,
+        TSession: SessionMessenger<TSendables> + Send + Sync + 'static,
     {
         self.sessions.insert(
             SessionId(self.current_id),
