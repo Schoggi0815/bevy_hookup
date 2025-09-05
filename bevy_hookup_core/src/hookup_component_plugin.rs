@@ -3,9 +3,12 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
-    external_component::ExternalComponent, owner_component::Owner,
-    sendable_component::SendableComponent, session::Session, shared::Shared,
-    sync_entity::SyncEntity,
+    external_component::ExternalComponent,
+    owner_component::Owner,
+    sendable_component::SendableComponent,
+    session::Session,
+    shared::Shared,
+    sync_entity::{SyncEntity, SyncEntityOwner},
 };
 
 pub struct HookupComponentPlugin<
@@ -39,6 +42,7 @@ impl<
             FixedUpdate,
             (
                 send_owned::<TSendables, TComponent>,
+                init_new_session::<TSendables, TComponent>,
                 check_session_channels::<TSendables, TComponent>,
             ),
         );
@@ -49,36 +53,116 @@ fn send_owned<
     TSendables: Send + Sync + 'static + Clone,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 >(
-    owned_components: Query<(Ref<Owner<TComponent>>, Entity, &SyncEntity)>,
+    owned_components: Query<(
+        &mut Owner<TComponent>,
+        Entity,
+        &SyncEntity,
+        Option<Ref<SyncEntityOwner>>,
+    )>,
     mut sessions: Query<&mut Session<TSendables>>,
     mut commands: Commands,
 ) {
-    for (owned_component, owned_entity, sync_entity) in owned_components {
+    for (mut owned_component, owned_entity, sync_entity, sync_owner) in owned_components {
+        let component_changed = owned_component.is_changed();
+        let sync_owner_changed = if let Some(ref sync_owner) = sync_owner {
+            sync_owner.is_changed()
+        } else {
+            false
+        };
+
+        if !component_changed && !sync_owner_changed {
+            continue;
+        }
+
         let external_component =
             ExternalComponent::new(sync_entity.sync_id, owned_component.component_id);
 
         if owned_component.remove {
-            for mut session in sessions.iter_mut() {
+            for mut session in sessions.iter_mut().filter(|s| {
+                owned_component
+                    .session_filter
+                    .allow_session(&s.get_session_id())
+            }) {
                 session.component_removed(external_component);
             }
+
             commands.entity(owned_entity).remove::<Owner<TComponent>>();
+            continue;
         }
 
-        if owned_component.is_added() {
-            let session_component = owned_component.into_inner().get_inner();
-            for mut session in sessions.iter_mut() {
-                session.component_added(external_component, session_component.to_sendable());
+        let sendable = owned_component.get_inner().to_sendable();
+        let session_filter = owned_component.session_filter.clone();
+
+        for mut session in sessions.iter_mut() {
+            let mut is_allowed = session_filter.allow_session(&session.get_session_id());
+            let is_on = owned_component
+                .on_sessions
+                .contains(&session.get_session_id());
+
+            if let Some(ref sync_owner) = sync_owner
+                && !sync_owner
+                    .session_filter
+                    .allow_session(&session.get_session_id())
+            {
+                is_allowed = false;
             }
-        } else if owned_component.is_changed() {
-            let session_component = owned_component.into_inner().get_inner();
-            for mut session in sessions.iter_mut() {
-                session.componend_updated(external_component, session_component.to_sendable());
+
+            if is_allowed && !is_on {
+                session.component_added(external_component, sendable.clone());
+                owned_component.on_sessions.push(session.get_session_id());
+            } else if is_allowed && is_on {
+                session.componend_updated(external_component, sendable.clone());
+            } else if is_on && !is_allowed {
+                session.component_removed(external_component);
+                owned_component.on_sessions = owned_component
+                    .on_sessions
+                    .clone()
+                    .into_iter()
+                    .filter(|sid| *sid != session.get_session_id())
+                    .collect();
             }
         }
     }
 }
 
-pub fn check_session_channels<
+fn init_new_session<
+    TSendables: Send + Sync + 'static + Clone,
+    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+>(
+    mut owned_components: Query<(
+        &mut Owner<TComponent>,
+        &SyncEntity,
+        Option<&SyncEntityOwner>,
+    )>,
+    sessions: Query<&mut Session<TSendables>, Added<Session<TSendables>>>,
+) {
+    for mut session in sessions {
+        for (owned_component, sync_entity, sync_owner) in owned_components.iter_mut() {
+            if !owned_component
+                .session_filter
+                .allow_session(&session.get_session_id())
+            {
+                continue;
+            }
+
+            if let Some(sync_owner) = sync_owner
+                && !sync_owner
+                    .session_filter
+                    .allow_session(&session.get_session_id())
+            {
+                continue;
+            }
+
+            let external_component =
+                ExternalComponent::new(sync_entity.sync_id, owned_component.component_id);
+            let sendable = owned_component.get_inner().to_sendable();
+
+            session.component_added(external_component, sendable);
+        }
+    }
+}
+
+fn check_session_channels<
     TSendables: Send + Sync + 'static + Clone,
     TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
 >(

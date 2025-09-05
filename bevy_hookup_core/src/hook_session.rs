@@ -7,6 +7,7 @@ use crate::{
 };
 
 #[derive(Reflect, Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[reflect(Default)]
 pub struct SessionId(u64);
 
 impl Default for SessionId {

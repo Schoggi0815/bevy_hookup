@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::sync_id::SyncId;
+use crate::{hook_session::SessionId, session_filter::SessionFilter, sync_id::SyncId};
 
 #[derive(Reflect, Component, Clone, Default)]
 pub struct SyncEntity {
@@ -10,12 +10,18 @@ pub struct SyncEntity {
 #[derive(Reflect, Component, Clone)]
 #[require(SyncEntity)]
 pub struct SyncEntityOwner {
+    pub on_sessions: Vec<SessionId>,
+    pub session_filter: SessionFilter,
     pub remove: bool,
 }
 
 impl SyncEntityOwner {
     pub fn new() -> Self {
-        Self { remove: false }
+        Self {
+            remove: false,
+            on_sessions: Vec::new(),
+            session_filter: SessionFilter::default(),
+        }
     }
 }
 

@@ -3,7 +3,9 @@ use crossbeam::channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    external_component::ExternalComponent, hook_session::SessionMessenger, sync_id::SyncId,
+    external_component::ExternalComponent,
+    hook_session::{SessionId, SessionMessenger},
+    sync_id::SyncId,
 };
 
 #[derive(Component)]
@@ -21,6 +23,10 @@ impl<TSendables> Session<TSendables> {
             messenger,
             channels,
         }
+    }
+
+    pub fn get_session_id(&self) -> SessionId {
+        self.messenger.get_session_id()
     }
 
     pub fn entity_added(&mut self, sync_id: SyncId) {

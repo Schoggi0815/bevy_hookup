@@ -27,6 +27,7 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
                 FixedPreUpdate,
                 (
                     send_entites::<TSendables>,
+                    init_session::<TSendables>,
                     check_entity_channel::<TSendables>,
                 ),
             );
@@ -35,26 +36,58 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
 
 fn send_entites<TSendables: Send + Sync + 'static + Clone>(
     mut sessions: Query<&mut Session<TSendables>>,
-    sync_entities_added: Query<&SyncEntity, Added<SyncEntityOwner>>,
-    sync_entities_changed: Query<(Entity, &SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
+    sync_entities: Query<(Entity, &mut SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
     mut commands: Commands,
 ) {
-    for added_entity in sync_entities_added {
-        for mut session in sessions.iter_mut() {
-            session.entity_added(added_entity.sync_id);
-        }
-    }
+    for (entity, mut owner, sync) in sync_entities {
+        if owner.remove {
+            for mut session in sessions
+                .iter_mut()
+                .filter(|s| owner.session_filter.allow_session(&s.get_session_id()))
+            {
+                session.entity_removed(sync.sync_id);
+            }
+            commands.entity(entity).despawn();
 
-    for (changed_entity, changed_owner, changed_sync) in sync_entities_changed {
-        if !changed_owner.remove {
             continue;
         }
 
         for mut session in sessions.iter_mut() {
-            session.entity_removed(changed_sync.sync_id);
+            let session_id = session.get_session_id();
+            let in_session = owner.on_sessions.contains(&session_id);
+            let allowed_in_session = owner.session_filter.allow_session(&session_id);
+            if in_session && !allowed_in_session {
+                session.entity_removed(sync.sync_id);
+                owner.on_sessions = owner
+                    .on_sessions
+                    .clone()
+                    .into_iter()
+                    .filter(|sid| *sid != session_id)
+                    .collect();
+            } else if !in_session && allowed_in_session {
+                session.entity_added(sync.sync_id);
+                owner.on_sessions.push(session_id);
+            }
         }
+    }
+}
 
-        commands.entity(changed_entity).despawn();
+fn init_session<TSendables: Send + Sync + 'static + Clone>(
+    sessions: Query<&mut Session<TSendables>, Added<Session<TSendables>>>,
+    mut sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity)>,
+) {
+    for mut session in sessions {
+        for (mut owner, sync) in sync_entities.iter_mut() {
+            if !owner
+                .session_filter
+                .allow_session(&session.get_session_id())
+            {
+                continue;
+            }
+
+            session.entity_added(sync.sync_id);
+            owner.on_sessions.push(session.get_session_id());
+        }
     }
 }
 

@@ -16,4 +16,11 @@ impl ExternalComponent {
             component_id,
         }
     }
+
+    pub fn counterpart(&self) -> Self {
+        Self {
+            entity_id: self.entity_id.counterpart(),
+            component_id: self.component_id,
+        }
+    }
 }

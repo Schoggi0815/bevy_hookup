@@ -39,7 +39,7 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
         channels
             .entity
             .0
-            .try_send(EntityActions::Add(sync_id))
+            .try_send(EntityActions::Add(sync_id.counterpart()))
             .expect("Unbounded");
     }
 
@@ -48,7 +48,7 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
         channels
             .entity
             .0
-            .try_send(EntityActions::Remove(sync_id))
+            .try_send(EntityActions::Remove(sync_id.counterpart()))
             .expect("Unbounded");
     }
 
@@ -64,7 +64,7 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
             .0
             .try_send(AddedData {
                 component_data,
-                external_component,
+                external_component: external_component.counterpart(),
             })
             .expect("Unbounded");
     }
@@ -81,7 +81,7 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
             .0
             .try_send(UpdatedData {
                 component_data,
-                external_component,
+                external_component: external_component.counterpart(),
             })
             .expect("Unbounded");
     }
@@ -95,7 +95,9 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
         channels
             .removed
             .0
-            .try_send(RemovedData { external_component })
+            .try_send(RemovedData {
+                external_component: external_component.counterpart(),
+            })
             .expect("Unbounded");
     }
 
