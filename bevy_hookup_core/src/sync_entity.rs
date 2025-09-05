@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-use crate::{hook_session::SessionId, session_filter::SessionFilter, sync_id::SyncId};
+use crate::{hook_session::SessionId, session_filter::SessionFilter, sync_entity_id::SyncEntityId};
 
 #[derive(Reflect, Component, Clone, Default)]
 pub struct SyncEntity {
-    pub sync_id: SyncId,
+    pub sync_id: SyncEntityId,
 }
 
 #[derive(Reflect, Component, Clone)]
@@ -26,7 +26,7 @@ impl SyncEntityOwner {
 }
 
 impl SyncEntity {
-    pub fn new_from_id(sync_id: SyncId) -> Self {
+    pub fn new_from_id(sync_id: SyncEntityId) -> Self {
         Self { sync_id }
     }
 }

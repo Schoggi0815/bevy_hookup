@@ -42,7 +42,6 @@ impl<
             FixedUpdate,
             (
                 send_owned::<TSendables, TComponent>,
-                init_new_session::<TSendables, TComponent>,
                 check_session_channels::<TSendables, TComponent>,
             ),
         );
@@ -94,18 +93,22 @@ fn send_owned<
         let session_filter = owned_component.session_filter.clone();
 
         for mut session in sessions.iter_mut() {
-            let mut is_allowed = session_filter.allow_session(&session.get_session_id());
+            let is_component_allowed = session_filter.allow_session(&session.get_session_id());
             let is_on = owned_component
                 .on_sessions
                 .contains(&session.get_session_id());
 
-            if let Some(ref sync_owner) = sync_owner
+            let is_entity_allowed = if let Some(ref sync_owner) = sync_owner
                 && !sync_owner
                     .session_filter
                     .allow_session(&session.get_session_id())
             {
-                is_allowed = false;
-            }
+                false
+            } else {
+                true
+            };
+
+            let is_allowed = is_component_allowed && is_entity_allowed;
 
             if is_allowed && !is_on {
                 session.component_added(external_component, sendable.clone());
@@ -113,7 +116,9 @@ fn send_owned<
             } else if is_allowed && is_on {
                 session.componend_updated(external_component, sendable.clone());
             } else if is_on && !is_allowed {
-                session.component_removed(external_component);
+                if is_entity_allowed {
+                    session.component_removed(external_component);
+                }
                 owned_component.on_sessions = owned_component
                     .on_sessions
                     .clone()
@@ -121,43 +126,6 @@ fn send_owned<
                     .filter(|sid| *sid != session.get_session_id())
                     .collect();
             }
-        }
-    }
-}
-
-fn init_new_session<
-    TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
->(
-    mut owned_components: Query<(
-        &mut Owner<TComponent>,
-        &SyncEntity,
-        Option<&SyncEntityOwner>,
-    )>,
-    sessions: Query<&mut Session<TSendables>, Added<Session<TSendables>>>,
-) {
-    for mut session in sessions {
-        for (owned_component, sync_entity, sync_owner) in owned_components.iter_mut() {
-            if !owned_component
-                .session_filter
-                .allow_session(&session.get_session_id())
-            {
-                continue;
-            }
-
-            if let Some(sync_owner) = sync_owner
-                && !sync_owner
-                    .session_filter
-                    .allow_session(&session.get_session_id())
-            {
-                continue;
-            }
-
-            let external_component =
-                ExternalComponent::new(sync_entity.sync_id, owned_component.component_id);
-            let sendable = owned_component.get_inner().to_sendable();
-
-            session.component_added(external_component, sendable);
         }
     }
 }

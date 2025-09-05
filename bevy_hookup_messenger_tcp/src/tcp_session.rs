@@ -8,7 +8,7 @@ use bevy_hookup_core::{
     external_component::ExternalComponent,
     hook_session::{SessionId, SessionMessenger},
     session::{AddedData, EntityActions, RemovedData, Session, SessionChannels, UpdatedData},
-    sync_id::SyncId,
+    sync_entity_id::SyncEntityId,
 };
 use bincode::{
     config::{self},
@@ -100,7 +100,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
         Session::new(Box::new(self), channels)
     }
 
-    fn entity_added(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncId) {
+    fn entity_added(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
         info!("Entity Added!");
         let mut tcp_stream = create_tcp_stream();
 
@@ -112,7 +112,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
         .expect("Failed to write");
     }
 
-    fn entity_removed(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncId) {
+    fn entity_removed(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
         info!("Entity Removed!");
         let mut tcp_stream = create_tcp_stream();
 

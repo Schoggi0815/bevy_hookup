@@ -3,7 +3,7 @@ use bevy_hookup_core::{
     external_component::ExternalComponent,
     hook_session::{SessionId, SessionMessenger},
     session::{AddedData, EntityActions, RemovedData, Session, SessionChannels, UpdatedData},
-    sync_id::SyncId,
+    sync_entity_id::SyncEntityId,
 };
 use crossbeam::channel::unbounded;
 
@@ -34,7 +34,7 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
         Session::new(Box::new(self), channels)
     }
 
-    fn entity_added(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId) {
+    fn entity_added(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
         info!("Entity Added!");
         channels
             .entity
@@ -43,7 +43,7 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
             .expect("Unbounded");
     }
 
-    fn entity_removed(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncId) {
+    fn entity_removed(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
         info!("Entity Removed!");
         channels
             .entity

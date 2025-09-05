@@ -8,5 +8,6 @@ pub mod sendable_component;
 pub mod session;
 pub mod session_filter;
 pub mod shared;
+pub mod sync_component_id;
 pub mod sync_entity;
-pub mod sync_id;
+pub mod sync_entity_id;

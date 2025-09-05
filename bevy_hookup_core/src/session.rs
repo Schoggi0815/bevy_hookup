@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     external_component::ExternalComponent,
     hook_session::{SessionId, SessionMessenger},
-    sync_id::SyncId,
+    sync_entity_id::SyncEntityId,
 };
 
 #[derive(Component)]
@@ -29,11 +29,11 @@ impl<TSendables> Session<TSendables> {
         self.messenger.get_session_id()
     }
 
-    pub fn entity_added(&mut self, sync_id: SyncId) {
+    pub fn entity_added(&mut self, sync_id: SyncEntityId) {
         self.messenger.entity_added(&self.channels, sync_id);
     }
 
-    pub fn entity_removed(&mut self, sync_id: SyncId) {
+    pub fn entity_removed(&mut self, sync_id: SyncEntityId) {
         self.messenger.entity_removed(&self.channels, sync_id);
     }
 
@@ -77,8 +77,8 @@ pub struct SessionChannels<TSendables> {
 
 #[derive(Serialize, Deserialize)]
 pub enum EntityActions {
-    Add(SyncId),
-    Remove(SyncId),
+    Add(SyncEntityId),
+    Remove(SyncEntityId),
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
