@@ -5,6 +5,9 @@ use bevy_hookup_core::{
     session_filter::SessionFilter, shared::Shared, sync_entity::SyncEntityOwner,
 };
 use bevy_hookup_messenger_self::self_session::SelfSession;
+use bevy_hookup_messenger_websocket::{
+    websocket_client_plugin::WebsocketClientPlugin, websocket_server_plugin::WebsocketServerPlugin,
+};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{
@@ -17,7 +20,8 @@ mod sync_name;
 mod test_component;
 mod test_component_2;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     App::new()
         .register_type::<Owner<TestComponent>>()
         .register_type::<Shared<TestComponent>>()
@@ -31,6 +35,7 @@ fn main() {
             HookupComponentPlugin::<Sendables, TestComponent>::default(),
             HookupComponentPlugin::<Sendables, TestComponent2>::default(),
             HookupComponentPlugin::<Sendables, SyncName>::default(),
+            WebsocketClientPlugin::<Sendables>::default(),
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
         ))

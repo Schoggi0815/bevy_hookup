@@ -16,5 +16,6 @@ bevy = { version = "0.16.1" }
 bevy-inspector-egui = "0.33.1"
 bevy_hookup_core = { path = "../../bevy_hookup_core" }
 bevy_hookup_messenger_self = { path = "../../bevy_hookup_messenger_self" }
-bevy_hookup_messenger_tcp = { path = "../../bevy_hookup_messenger_tcp" }
+bevy_hookup_messenger_websocket = { path = "../../bevy_hookup_messenger_websocket" }
 serde = "1.0.219"
+tokio = "1.47.1"

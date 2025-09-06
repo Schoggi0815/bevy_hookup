@@ -3,6 +3,6 @@ resolver = "3"
 members = [
     "./bevy_hookup_core",
     "./bevy_hookup_messenger_self",
-    "./bevy_hookup_messenger_tcp",
+    "./bevy_hookup_messenger_websocket",
     "./examples/basic"
 ]
