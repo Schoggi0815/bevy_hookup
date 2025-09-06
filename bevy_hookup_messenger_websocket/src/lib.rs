@@ -1,3 +1,4 @@
+pub mod session_message;
 pub mod websocket_client;
 pub mod websocket_client_plugin;
 pub mod websocket_data;

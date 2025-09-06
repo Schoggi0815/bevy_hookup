@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
+    from_session::FromSession,
     session::{EntityActions, Session},
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
@@ -108,7 +109,12 @@ fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
                         continue;
                     }
 
-                    commands.spawn(SyncEntity::new_from_id(sync_id));
+                    commands.spawn((
+                        SyncEntity::new_from_id(sync_id),
+                        FromSession {
+                            session_id: session.get_session_id(),
+                        },
+                    ));
                 }
                 EntityActions::Remove(sync_id) => {
                     let Some((sync_entity, _)) =

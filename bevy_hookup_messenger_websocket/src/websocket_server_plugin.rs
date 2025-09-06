@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
+use bevy_hookup_core::session::Session;
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::websocket_server::WebsocketServer;
+use crate::{session_message::SessionMessage, websocket_server::WebsocketServer};
 
 pub struct WebsocketServerPlugin<
     TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone,
@@ -26,19 +27,32 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> P
 {
     fn build(&self, app: &mut App) {
         app.insert_resource(WebsocketServer::<TSendables>::new())
-            .add_systems(Update, Self::add_server_sessions);
+            .add_systems(Update, Self::manage_server_sessions);
     }
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     WebsocketServerPlugin<TSendables>
 {
-    fn add_server_sessions(
+    fn manage_server_sessions(
         websocket_server: Res<WebsocketServer<TSendables>>,
+        mut sessions: Query<&mut Session<TSendables>>,
         mut commands: Commands,
     ) {
-        for session in websocket_server.get_new_sessions() {
-            commands.spawn(session);
+        for session in websocket_server.get_session_messages() {
+            match session {
+                SessionMessage::Add(session) => {
+                    commands.spawn(session);
+                }
+                SessionMessage::Remove(session_id) => {
+                    let session = sessions
+                        .iter_mut()
+                        .find(|s| s.get_session_id() == session_id);
+                    if let Some(mut session) = session {
+                        session.remove = true;
+                    }
+                }
+            }
         }
     }
 }

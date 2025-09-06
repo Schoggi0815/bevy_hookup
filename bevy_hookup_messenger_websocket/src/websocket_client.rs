@@ -1,5 +1,5 @@
 use bevy::ecs::resource::Resource;
-use bevy_hookup_core::{hook_session::SessionMessenger, session::Session};
+use bevy_hookup_core::hook_session::SessionMessenger;
 use bincode::{
     config,
     serde::{decode_from_slice, encode_to_vec},
@@ -10,12 +10,15 @@ use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::{websocket_data::WebsocketData, websocket_session::WebsocketSession};
+use crate::{
+    session_message::SessionMessage, websocket_data::WebsocketData,
+    websocket_session::WebsocketSession,
+};
 
 #[derive(Resource)]
 pub struct WebsocketClient<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
 {
-    session_receiver: Receiver<Session<TSendables>>,
+    session_receiver: Receiver<SessionMessage<TSendables>>,
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
@@ -30,8 +33,11 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
             let (ws_sender, mut ws_receiver) = mpsc::unbounded_channel();
             let session = WebsocketSession::<TSendables>::new(ws_sender);
             let channels = session.get_channels();
+            let session_id = session.get_session_id();
 
-            session_sender.try_send(session.to_session()).unwrap();
+            session_sender
+                .try_send(SessionMessage::Add(session.to_session()))
+                .unwrap();
 
             loop {
                 tokio::select! {
@@ -65,12 +71,16 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
                     }
                 }
             }
+
+            session_sender
+                .try_send(SessionMessage::Remove(session_id))
+                .unwrap();
         });
 
         Self { session_receiver }
     }
 
-    pub fn get_new_sessions(&self) -> impl Iterator<Item = Session<TSendables>> {
+    pub fn get_session_messages(&self) -> impl Iterator<Item = SessionMessage<TSendables>> {
         self.session_receiver.try_iter()
     }
 }

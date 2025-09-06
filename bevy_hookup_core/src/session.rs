@@ -12,6 +12,7 @@ use crate::{
 pub struct Session<TSendables> {
     messenger: Box<dyn SessionMessenger<TSendables> + Send + Sync>,
     pub channels: SessionChannels<TSendables>,
+    pub remove: bool,
 }
 
 impl<TSendables> Session<TSendables> {
@@ -22,6 +23,7 @@ impl<TSendables> Session<TSendables> {
         Self {
             messenger,
             channels,
+            remove: false,
         }
     }
 

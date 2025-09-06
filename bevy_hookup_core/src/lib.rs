@@ -1,4 +1,5 @@
 pub mod external_component;
+pub mod from_session;
 pub mod hook_session;
 pub mod hookup_component_plugin;
 pub mod hookup_entity_plugin;
