@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_messenger_self"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "bevy",
  "bevy_hookup_core",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_messenger_websocket"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "bevy",
  "bevy_hookup_core",

@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_messenger_websocket"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 description = "The websocket messenger of the bevy_hookup library"
 readme = "./README.md"

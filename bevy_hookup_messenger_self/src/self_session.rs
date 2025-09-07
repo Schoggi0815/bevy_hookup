@@ -35,7 +35,6 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
     }
 
     fn entity_added(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
-        info!("Entity Added!");
         channels
             .entity
             .0
@@ -44,7 +43,6 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
     }
 
     fn entity_removed(&mut self, channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
-        info!("Entity Removed!");
         channels
             .entity
             .0
@@ -58,7 +56,6 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
         external_component: ExternalComponent,
         component_data: TSendables,
     ) {
-        info!("Added client component!");
         channels
             .added
             .0
@@ -75,7 +72,6 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
         external_component: ExternalComponent,
         component_data: TSendables,
     ) {
-        info!("Updated client component!");
         channels
             .updated
             .0
@@ -91,7 +87,6 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
         channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
     ) {
-        info!("Removed client component!");
         channels
             .removed
             .0

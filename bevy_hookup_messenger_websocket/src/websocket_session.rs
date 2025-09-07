@@ -47,16 +47,12 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     }
 
     fn entity_added(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
-        info!("Entity Added!");
-
         self.send_data(WebsocketData::<TSendables>::EntityAction(
             EntityActions::Add(sync_id),
         ));
     }
 
     fn entity_removed(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
-        info!("Entity Removed!");
-
         self.send_data(WebsocketData::<TSendables>::EntityAction(
             EntityActions::Remove(sync_id),
         ));
@@ -68,8 +64,6 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
         external_component: ExternalComponent,
         component_data: TSendables,
     ) {
-        info!("Added client component!");
-
         self.send_data(WebsocketData::<TSendables>::ComponentAdded(AddedData {
             component_data,
             external_component,
@@ -82,8 +76,6 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
         external_component: ExternalComponent,
         component_data: TSendables,
     ) {
-        info!("Updated client component!");
-
         self.send_data(WebsocketData::<TSendables>::ComponentUpdated(UpdatedData {
             component_data,
             external_component,
@@ -95,8 +87,6 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
         _channels: &SessionChannels<TSendables>,
         external_component: ExternalComponent,
     ) {
-        info!("Removed client component!");
-
         self.send_data(WebsocketData::<TSendables>::ComponentRemoved(RemovedData {
             external_component,
         }));
