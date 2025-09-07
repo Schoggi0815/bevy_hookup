@@ -9,5 +9,5 @@ repository = "https://github.com/Schoggi0815/bevy_hookup"
 
 [dependencies]
 bevy = { version = "0.16.1" }
-bevy_hookup_core = { path = "../bevy_hookup_core" }
+bevy_hookup_core = { path = "../bevy_hookup_core", version = "1.0.0"}
 crossbeam = "0.8.4"
