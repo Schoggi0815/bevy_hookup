@@ -1,5 +1,5 @@
 use bevy::{ecs::resource::Resource, log::info};
-use bevy_hookup_core::hook_session::SessionMessenger;
+use bevy_hookup_core::{hook_session::SessionMessenger, session_action::SessionAction};
 use bincode::{
     config,
     serde::{decode_from_slice, encode_to_vec},
@@ -10,10 +10,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use crate::{
-    session_message::SessionMessage, websocket_data::WebsocketData,
-    websocket_session::WebsocketSession,
-};
+use crate::{session_message::SessionMessage, websocket_session::WebsocketSession};
 
 #[derive(Resource)]
 pub struct WebsocketClient<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
@@ -57,13 +54,13 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
                             continue;
                         }
 
-                        let (data, _) = decode_from_slice::<WebsocketData<TSendables>, _>(
+                        let (data, _) = decode_from_slice::<Vec<SessionAction<TSendables>>, _>(
                             &msg.into_data(),
                             config::standard(),
                         )
                         .unwrap();
 
-                        data.send_into_channel(&channels);
+                        data.into_iter().for_each(|sa| channels.sender.try_send(sa).expect("unbounded"));
                     }
                     data = ws_receiver.recv() => {
                         let Some(data) = data else {

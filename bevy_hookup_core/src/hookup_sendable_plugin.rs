@@ -21,11 +21,18 @@ impl<TSendables: Send + Sync + 'static + Clone> Default for HookupSendablePlugin
 impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupSendablePlugin<TSendables> {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_plugins(HookupEntityPlugin::<TSendables>::default())
-            .add_systems(Update, Self::remove_session);
+            .add_systems(Update, Self::remove_session)
+            .add_systems(FixedPostUpdate, Self::send_session_messages);
     }
 }
 
 impl<TSendables: Send + Sync + 'static + Clone> HookupSendablePlugin<TSendables> {
+    pub fn send_session_messages(sessions: Query<&mut Session<TSendables>>) {
+        for mut session in sessions {
+            session.push_messages();
+        }
+    }
+
     pub fn remove_session(
         sessions: Query<(Entity, &Session<TSendables>), Changed<Session<TSendables>>>,
         from_sesions: Query<(Entity, &FromSession)>,

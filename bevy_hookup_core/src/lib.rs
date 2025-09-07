@@ -7,6 +7,7 @@ pub mod hookup_sendable_plugin;
 pub mod owner_component;
 pub mod sendable_component;
 pub mod session;
+pub mod session_action;
 pub mod session_filter;
 pub mod shared;
 pub mod sync_component_id;

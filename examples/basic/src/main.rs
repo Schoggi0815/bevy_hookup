@@ -36,12 +36,8 @@ async fn main() {
             HookupComponentPlugin::<Sendables, TestComponent>::default(),
             HookupComponentPlugin::<Sendables, TestComponent2>::default(),
             HookupComponentPlugin::<Sendables, SyncName>::default(),
-            WebsocketClientPlugin::<Sendables>::default(),
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
-        ))
-        .insert_resource(WebsocketServer::<Sendables>::new(
-            "0.0.0.0:1234".to_string(),
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (spawn_entity, spawn_session))

@@ -4,7 +4,8 @@ use bevy::prelude::*;
 
 use crate::{
     from_session::FromSession,
-    session::{EntityActions, Session},
+    session::Session,
+    session_action::SessionAction,
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
 
@@ -98,34 +99,36 @@ fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
     sync_entities: Query<(Entity, &SyncEntity)>,
 ) {
     for session in sessions {
-        for entity_action in session.channels.entity.1.try_iter() {
-            match entity_action {
-                EntityActions::Add(sync_id) => {
-                    if sync_entities
-                        .iter()
-                        .find(|se| se.1.sync_id == sync_id)
-                        .is_some()
-                    {
+        let mut unused_actions = Vec::new();
+        for session_action in session.channels.receiver.try_iter() {
+            match session_action {
+                SessionAction::AddEntity { id } => {
+                    if sync_entities.iter().find(|se| se.1.sync_id == id).is_some() {
                         continue;
                     }
 
                     commands.spawn((
-                        SyncEntity::new_from_id(sync_id),
+                        SyncEntity::new_from_id(id),
                         FromSession {
                             session_id: session.get_session_id(),
                         },
                     ));
                 }
-                EntityActions::Remove(sync_id) => {
-                    let Some((sync_entity, _)) =
-                        sync_entities.iter().find(|se| se.1.sync_id == sync_id)
+                SessionAction::RemoveEntity { id } => {
+                    let Some((sync_entity, _)) = sync_entities.iter().find(|se| se.1.sync_id == id)
                     else {
                         continue;
                     };
 
                     commands.entity(sync_entity).despawn();
                 }
+                _ => {
+                    unused_actions.push(session_action);
+                }
             }
         }
+        unused_actions
+            .into_iter()
+            .for_each(|sa| session.channels.sender.try_send(sa).expect("unbounded"));
     }
 }

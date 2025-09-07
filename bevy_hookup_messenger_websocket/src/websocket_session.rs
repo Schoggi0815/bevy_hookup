@@ -1,39 +1,32 @@
 use bevy::prelude::*;
 use bevy_hookup_core::{
-    external_component::ExternalComponent,
     hook_session::{SessionId, SessionMessenger},
-    session::{AddedData, EntityActions, RemovedData, Session, SessionChannels, UpdatedData},
-    sync_entity_id::SyncEntityId,
+    session::{Session, SessionChannels},
+    session_action::SessionAction,
 };
 use crossbeam::channel::unbounded;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::websocket_data::WebsocketData;
-
 pub struct WebsocketSession<TSendables> {
     session_id: SessionId,
     channels: SessionChannels<TSendables>,
-    websocket_sender: UnboundedSender<WebsocketData<TSendables>>,
+    websocket_sender: UnboundedSender<Vec<SessionAction<TSendables>>>,
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     WebsocketSession<TSendables>
 {
-    pub fn new(websocket_sender: UnboundedSender<WebsocketData<TSendables>>) -> Self {
+    pub fn new(websocket_sender: UnboundedSender<Vec<SessionAction<TSendables>>>) -> Self {
+        let (sender, receiver) = unbounded();
         Self {
             websocket_sender,
             session_id: SessionId::default(),
-            channels: SessionChannels {
-                added: unbounded(),
-                entity: unbounded(),
-                removed: unbounded(),
-                updated: unbounded(),
-            },
+            channels: SessionChannels { sender, receiver },
         }
     }
 
-    fn send_data(&mut self, data: WebsocketData<TSendables>) {
+    fn send_data(&mut self, data: Vec<SessionAction<TSendables>>) {
         self.websocket_sender.send(data).unwrap();
     }
 }
@@ -46,57 +39,15 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
         Session::new(Box::new(self), channels)
     }
 
-    fn entity_added(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
-        self.send_data(WebsocketData::<TSendables>::EntityAction(
-            EntityActions::Add(sync_id),
-        ));
-    }
-
-    fn entity_removed(&mut self, _channels: &SessionChannels<TSendables>, sync_id: SyncEntityId) {
-        self.send_data(WebsocketData::<TSendables>::EntityAction(
-            EntityActions::Remove(sync_id),
-        ));
-    }
-
-    fn component_added(
-        &mut self,
-        _channels: &SessionChannels<TSendables>,
-        external_component: ExternalComponent,
-        component_data: TSendables,
-    ) {
-        self.send_data(WebsocketData::<TSendables>::ComponentAdded(AddedData {
-            component_data,
-            external_component,
-        }));
-    }
-
-    fn componend_updated(
-        &mut self,
-        _channels: &SessionChannels<TSendables>,
-        external_component: ExternalComponent,
-        component_data: TSendables,
-    ) {
-        self.send_data(WebsocketData::<TSendables>::ComponentUpdated(UpdatedData {
-            component_data,
-            external_component,
-        }));
-    }
-
-    fn component_removed(
-        &mut self,
-        _channels: &SessionChannels<TSendables>,
-        external_component: ExternalComponent,
-    ) {
-        self.send_data(WebsocketData::<TSendables>::ComponentRemoved(RemovedData {
-            external_component,
-        }));
-    }
-
     fn get_session_id(&self) -> SessionId {
         self.session_id
     }
 
     fn get_channels(&self) -> SessionChannels<TSendables> {
         self.channels.clone()
+    }
+
+    fn handle_actions(&mut self, actions: &Vec<SessionAction<TSendables>>) {
+        self.send_data(actions.clone());
     }
 }

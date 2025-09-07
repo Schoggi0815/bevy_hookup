@@ -7,6 +7,7 @@ use crate::{
     owner_component::Owner,
     sendable_component::SendableComponent,
     session::Session,
+    session_action::SessionAction,
     shared::Shared,
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
@@ -140,65 +141,68 @@ fn check_session_channels<
     mut commands: Commands,
 ) {
     for session in sessions {
-        let mut skipped_added = Vec::new();
-        for added_message in session.channels.added.1.try_iter() {
-            let Some(sended_component) =
-                TComponent::from_sendable(added_message.component_data.clone())
-            else {
-                skipped_added.push(added_message);
-                continue;
-            };
+        let mut unused_actions = Vec::new();
+        for session_action in session.channels.receiver.try_iter() {
+            match session_action {
+                SessionAction::AddComponent {
+                    ref component_data,
+                    ref external_component,
+                } => {
+                    let Some(sended_component) = TComponent::from_sendable(component_data.clone())
+                    else {
+                        unused_actions.push(session_action);
+                        continue;
+                    };
 
-            let Some((sync_entity, _)) = sync_entites
-                .iter()
-                .find(|se| se.1.sync_id == added_message.external_component.entity_id)
-            else {
-                continue;
-            };
+                    let Some((sync_entity, _)) = sync_entites
+                        .iter()
+                        .find(|se| se.1.sync_id == external_component.entity_id)
+                    else {
+                        continue;
+                    };
 
-            commands.entity(sync_entity).insert(Shared::new(
-                sended_component,
-                added_message.external_component.component_id,
-            ));
+                    commands.entity(sync_entity).insert(Shared::new(
+                        sended_component,
+                        external_component.component_id,
+                    ));
+                }
+                SessionAction::UpdateComponent {
+                    ref component_data,
+                    ref external_component,
+                } => {
+                    let Some(sended_component) = TComponent::from_sendable(component_data.clone())
+                    else {
+                        unused_actions.push(session_action);
+                        continue;
+                    };
+
+                    let Some((_, mut shared_component)) = shared_components
+                        .iter_mut()
+                        .find(|c| c.1.component_id == external_component.component_id)
+                    else {
+                        continue;
+                    };
+
+                    shared_component.update_inner(sended_component);
+                }
+                SessionAction::RemoveComponent { external_component } => {
+                    let Some((sync_entity, _)) = shared_components
+                        .iter()
+                        .find(|sc| sc.1.component_id == external_component.component_id)
+                    else {
+                        unused_actions.push(session_action);
+                        continue;
+                    };
+
+                    commands.entity(sync_entity).remove::<Shared<TComponent>>();
+                }
+                _ => {
+                    unused_actions.push(session_action);
+                }
+            }
         }
-        skipped_added
+        unused_actions
             .into_iter()
-            .for_each(|sa| session.channels.added.0.try_send(sa).expect("Unbounded"));
-        let mut skipped_updated = Vec::new();
-        for updated_message in session.channels.updated.1.try_iter() {
-            let Some(sended_component) =
-                TComponent::from_sendable(updated_message.component_data.clone())
-            else {
-                skipped_updated.push(updated_message);
-                continue;
-            };
-
-            let Some((_, mut shared_component)) = shared_components
-                .iter_mut()
-                .find(|c| c.1.component_id == updated_message.external_component.component_id)
-            else {
-                continue;
-            };
-
-            shared_component.update_inner(sended_component);
-        }
-        skipped_updated
-            .into_iter()
-            .for_each(|su| session.channels.updated.0.try_send(su).expect("Unbounded"));
-        let mut skipped_removed = Vec::new();
-        for removed_message in session.channels.removed.1.try_iter() {
-            let Some((sync_entity, _)) = shared_components
-                .iter()
-                .find(|sc| sc.1.component_id == removed_message.external_component.component_id)
-            else {
-                skipped_removed.push(removed_message);
-                continue;
-            };
-
-            commands.entity(sync_entity).remove::<Shared<TComponent>>();
-        }
-        skipped_removed
-            .into_iter()
-            .for_each(|sr| session.channels.removed.0.try_send(sr).expect("Unbounded"));
+            .for_each(|sa| session.channels.sender.try_send(sa).expect("Unbounded"));
     }
 }
