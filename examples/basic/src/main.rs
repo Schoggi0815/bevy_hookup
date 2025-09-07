@@ -6,7 +6,8 @@ use bevy_hookup_core::{
 };
 use bevy_hookup_messenger_self::self_session::SelfSession;
 use bevy_hookup_messenger_websocket::{
-    websocket_client_plugin::WebsocketClientPlugin, websocket_server_plugin::WebsocketServerPlugin,
+    websocket_client_plugin::WebsocketClientPlugin, websocket_server::WebsocketServer,
+    websocket_server_plugin::WebsocketServerPlugin,
 };
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
@@ -38,6 +39,9 @@ async fn main() {
             WebsocketClientPlugin::<Sendables>::default(),
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
+        ))
+        .insert_resource(WebsocketServer::<Sendables>::new(
+            "0.0.0.0:1234".to_string(),
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (spawn_entity, spawn_session))
