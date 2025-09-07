@@ -26,8 +26,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> P
     for WebsocketClientPlugin<TSendables>
 {
     fn build(&self, app: &mut App) {
-        app.insert_resource(WebsocketClient::<TSendables>::new())
-            .add_systems(Update, Self::manage_server_sessions);
+        app.add_systems(Update, Self::manage_server_sessions);
     }
 }
 

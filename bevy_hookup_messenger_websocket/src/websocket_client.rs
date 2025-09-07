@@ -1,4 +1,4 @@
-use bevy::ecs::resource::Resource;
+use bevy::{ecs::resource::Resource, log::info};
 use bevy_hookup_core::hook_session::SessionMessenger;
 use bincode::{
     config,
@@ -24,11 +24,18 @@ pub struct WebsocketClient<TSendables: Serialize + DeserializeOwned + Send + Syn
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     WebsocketClient<TSendables>
 {
-    pub fn new() -> Self {
+    pub fn new_with_host_and_port(host: String, port: u16) -> Self {
+        let full_address = format!("ws://{host}:{port}");
+        Self::new(full_address)
+    }
+
+    pub fn new(address: String) -> Self {
         let (session_sender, session_receiver) = unbounded();
 
+        info!("trying to connect to server at [{}]", address);
+
         tokio::spawn(async move {
-            let (mut websocket, _) = connect_async("ws://localhost:9001").await.unwrap();
+            let (mut websocket, _) = connect_async(address).await.unwrap();
 
             let (ws_sender, mut ws_receiver) = mpsc::unbounded_channel();
             let session = WebsocketSession::<TSendables>::new(ws_sender);

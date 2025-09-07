@@ -1,4 +1,4 @@
-use bevy::ecs::resource::Resource;
+use bevy::{ecs::resource::Resource, log::info};
 use bevy_hookup_core::hook_session::SessionMessenger;
 use bincode::{
     config,
@@ -24,11 +24,17 @@ pub struct WebsocketServer<TSendables: Serialize + DeserializeOwned + Send + Syn
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + Sized>
     WebsocketServer<TSendables>
 {
-    pub fn new() -> Self {
+    pub fn new_with_port(port: u16) -> Self {
+        let full_address = format!("0.0.0.0:{port}");
+        Self::new(full_address)
+    }
+
+    pub fn new(address: String) -> Self {
         let (session_sender, session_receiver) = unbounded();
+        info!("Opening server at [{}]", address);
 
         tokio::spawn(async move {
-            let server = TcpListener::bind("0.0.0.0:9001").await.unwrap();
+            let server = TcpListener::bind(address).await.unwrap();
 
             while let Ok((stream, _)) = server.accept().await {
                 let session_sender = session_sender.clone();
