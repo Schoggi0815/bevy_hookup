@@ -1,4 +1,4 @@
-use bevy::{ecs::resource::Resource, log::info};
+use bevy::{ecs::component::Component, log::info};
 use bevy_hookup_core::{hook_session::SessionMessenger, session_action::SessionAction};
 use bincode::{
     config,
@@ -10,12 +10,17 @@ use serde::{Serialize, de::DeserializeOwned};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
-use crate::{session_message::SessionMessage, websocket_session::WebsocketSession};
+use crate::{
+    session_message::SessionMessage, websocket_server_state::WebsocketServerState,
+    websocket_session::WebsocketSession,
+};
 
-#[derive(Resource)]
+#[derive(Component)]
+#[require(WebsocketServerState)]
 pub struct WebsocketServer<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
 {
     session_receiver: Receiver<SessionMessage<TSendables>>,
+    state_receiver: Receiver<WebsocketServerState>,
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + Sized>
@@ -28,16 +33,29 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
 
     pub fn new(address: String) -> Self {
         let (session_sender, session_receiver) = unbounded();
+        let (state_sender, state_receiver) = unbounded();
+
         info!("Opening server at [{}]", address);
 
         tokio::spawn(async move {
-            let server = TcpListener::bind(address).await.unwrap();
+            let Ok(server) = TcpListener::bind(address).await else {
+                state_sender
+                    .try_send(WebsocketServerState::Failed)
+                    .expect("Unbounded");
+                return;
+            };
+
+            state_sender
+                .try_send(WebsocketServerState::Ready)
+                .expect("Unbounded");
 
             while let Ok((stream, _)) = server.accept().await {
                 let session_sender = session_sender.clone();
 
                 tokio::spawn(async move {
-                    let mut websocket = accept_async(stream).await.unwrap();
+                    let Ok(mut websocket) = accept_async(stream).await else {
+                        return;
+                    };
 
                     let (ws_sender, mut ws_receiver) = mpsc::unbounded_channel();
                     let session = WebsocketSession::<TSendables>::new(ws_sender);
@@ -46,7 +64,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
 
                     session_sender
                         .try_send(SessionMessage::Add(session.to_session()))
-                        .unwrap();
+                        .expect("Unbounded");
 
                     loop {
                         tokio::select! {
@@ -59,11 +77,12 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
                                     continue;
                                 }
 
-                                let (data, _) = decode_from_slice::<Vec<SessionAction<TSendables>>, _>(
+                                let Ok((data, _)) = decode_from_slice::<Vec<SessionAction<TSendables>>, _>(
                                     &msg.into_data(),
                                     config::standard(),
-                                )
-                                .unwrap();
+                                ) else {
+                                    break;
+                                };
 
                                 data.into_iter().for_each(|sa| channels.sender.try_send(sa).expect("unbounded"));
                             }
@@ -72,26 +91,41 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
                                     continue;
                                 };
 
-                                let bytes = encode_to_vec(data, config::standard()).unwrap();
+                                let Ok(bytes) = encode_to_vec(data, config::standard()) else {
+                                    break;
+                                };
 
                                 let message = Message::binary(bytes);
 
-                                websocket.send(message).await.unwrap();
+                                if let Err(_) = websocket.send(message).await {
+                                    break;
+                                }
                             }
                         }
                     }
 
                     session_sender
                         .try_send(SessionMessage::Remove(session_id))
-                        .unwrap();
+                        .expect("Unbounded");
                 });
             }
+
+            state_sender
+                .try_send(WebsocketServerState::Closed)
+                .expect("Unbounded")
         });
 
-        Self { session_receiver }
+        Self {
+            session_receiver,
+            state_receiver,
+        }
     }
 
     pub fn get_session_messages(&self) -> impl Iterator<Item = SessionMessage<TSendables>> {
         self.session_receiver.try_iter()
+    }
+
+    pub fn get_state_updates(&self) -> impl Iterator<Item = WebsocketServerState> {
+        self.state_receiver.try_iter()
     }
 }

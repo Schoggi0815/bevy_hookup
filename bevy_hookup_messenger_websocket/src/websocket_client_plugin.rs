@@ -26,19 +26,25 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> P
     for WebsocketClientPlugin<TSendables>
 {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, Self::manage_server_sessions);
+        app.add_systems(
+            Update,
+            (Self::manage_client_sessions, Self::handle_client_states),
+        );
     }
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     WebsocketClientPlugin<TSendables>
 {
-    fn manage_server_sessions(
-        websocket_server: Res<WebsocketClient<TSendables>>,
+    fn manage_client_sessions(
+        websocket_clients: Query<&WebsocketClient<TSendables>>,
         mut sessions: Query<&mut Session<TSendables>>,
         mut commands: Commands,
     ) {
-        for session in websocket_server.get_session_messages() {
+        for session in websocket_clients
+            .iter()
+            .flat_map(|wc| wc.get_session_messages())
+        {
             match session {
                 SessionMessage::Add(session) => {
                     commands.spawn(session);
@@ -51,6 +57,17 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
                         session.remove = true;
                     }
                 }
+            }
+        }
+    }
+
+    fn handle_client_states(
+        websocket_clients: Query<(Entity, &WebsocketClient<TSendables>)>,
+        mut commands: Commands,
+    ) {
+        for (entity, client) in websocket_clients {
+            for new_state in client.get_state_updates() {
+                commands.entity(entity).insert(new_state);
             }
         }
     }
