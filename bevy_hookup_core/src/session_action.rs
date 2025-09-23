@@ -18,10 +18,6 @@ pub enum SessionAction<TSendables> {
         component_data: TSendables,
         external_component: ExternalComponent,
     },
-    UpdateSharedComponent {
-        component_data: TSendables,
-        external_component: ExternalComponent,
-    },
     RemoveComponent {
         external_component: ExternalComponent,
     },
@@ -47,13 +43,6 @@ impl<TSendables> SessionAction<TSendables> {
                 component_data,
                 external_component,
             } => Self::UpdateComponent {
-                component_data,
-                external_component: external_component.counterpart(),
-            },
-            Self::UpdateSharedComponent {
-                component_data,
-                external_component,
-            } => Self::UpdateSharedComponent {
                 component_data,
                 external_component: external_component.counterpart(),
             },

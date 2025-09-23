@@ -66,18 +66,6 @@ impl<TSendables> Session<TSendables> {
             });
     }
 
-    pub fn component_shared_updated(
-        &mut self,
-        external_component: ExternalComponent,
-        component_data: TSendables,
-    ) {
-        self.message_collection
-            .push(SessionAction::UpdateSharedComponent {
-                component_data,
-                external_component,
-            });
-    }
-
     pub fn component_removed(&mut self, external_component: ExternalComponent) {
         self.message_collection
             .push(SessionAction::RemoveComponent { external_component });

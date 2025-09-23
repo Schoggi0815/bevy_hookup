@@ -138,7 +138,6 @@ fn check_session_channels<
     sessions: Query<&Session<TSendables>>,
     sync_entites: Query<(Entity, &SyncEntity, Option<&SyncEntityOwner>)>,
     mut shared_components: Query<(Entity, &mut Shared<TComponent>)>,
-    mut owned_components: Query<&mut Owner<TComponent>>,
     mut commands: Commands,
 ) {
     for session in sessions {
@@ -197,36 +196,6 @@ fn check_session_channels<
                     };
 
                     shared_component.update_inner(sended_component);
-                }
-                SessionAction::UpdateSharedComponent {
-                    ref component_data,
-                    ref external_component,
-                } => {
-                    let Some(sended_component) = TComponent::from_sendable(component_data.clone())
-                    else {
-                        unused_actions.push(session_action);
-                        continue;
-                    };
-
-                    let Some(mut owned_component) = owned_components
-                        .iter_mut()
-                        .find(|c| c.component_id == external_component.component_id)
-                    else {
-                        continue;
-                    };
-
-                    if !owned_component
-                        .session_read_filter
-                        .allow_session(&session.get_session_id())
-                    {
-                        warn!(
-                            "Session [{:?}] tried to update unallowed component!",
-                            session.get_session_id()
-                        );
-                        continue;
-                    }
-
-                    owned_component.update_inner(sended_component);
                 }
                 SessionAction::RemoveComponent { external_component } => {
                     let Some((sync_entity, _)) = shared_components
