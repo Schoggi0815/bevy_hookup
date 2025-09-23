@@ -12,7 +12,6 @@ pub struct Owner<T> {
     pub remove: bool,
     pub on_sessions: Vec<SessionId>,
     pub session_read_filter: SessionFilter,
-    pub session_write_filter: SessionFilter,
 }
 
 impl<T> Owner<T> {
@@ -23,17 +22,11 @@ impl<T> Owner<T> {
             remove: false,
             on_sessions: Vec::new(),
             session_read_filter: SessionFilter::AllowAll,
-            session_write_filter: SessionFilter::AllowNone,
         }
     }
 
     pub fn with_read_filter(mut self, read_filter: SessionFilter) -> Self {
         self.session_read_filter = read_filter;
-        self
-    }
-
-    pub fn with_write_filter(mut self, write_filter: SessionFilter) -> Self {
-        self.session_write_filter = write_filter;
         self
     }
 

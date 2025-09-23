@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_messenger_self"
-version = "2.0.2"
+version = "2.0.3"
 edition = "2024"
 description = "The self messenger of the bevy_hookup library"
 readme = "./README.md"
@@ -9,5 +9,5 @@ repository = "https://github.com/Schoggi0815/bevy_hookup"
 
 [dependencies]
 bevy = { version = "0.16.1" }
-bevy_hookup_core = { path = "../bevy_hookup_core", version = "4.0.0"}
+bevy_hookup_core = { path = "../bevy_hookup_core", version = "4.0.1"}
 crossbeam = "0.8.4"
