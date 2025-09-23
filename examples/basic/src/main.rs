@@ -1,15 +1,10 @@
 use bevy::prelude::*;
 use bevy_hookup_core::{
     hook_session::SessionMessenger, hookup_component_plugin::HookupComponentPlugin,
-    hookup_reshare_component_plugin::HookupReshareComponentPlugin,
     hookup_sendable_plugin::HookupSendablePlugin, owner_component::Owner,
     session_filter::SessionFilter, shared::Shared, sync_entity::SyncEntityOwner,
 };
 use bevy_hookup_messenger_self::self_session::SelfSession;
-use bevy_hookup_messenger_websocket::{
-    websocket_client_plugin::WebsocketClientPlugin, websocket_server::WebsocketServer,
-    websocket_server_plugin::WebsocketServerPlugin,
-};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{
@@ -34,7 +29,7 @@ async fn main() {
         .add_plugins((
             DefaultPlugins,
             HookupSendablePlugin::<Sendables>::default(),
-            HookupReshareComponentPlugin::<Sendables, TestComponent>::default(),
+            HookupComponentPlugin::<Sendables, TestComponent>::default(),
             HookupComponentPlugin::<Sendables, TestComponent2>::default(),
             HookupComponentPlugin::<Sendables, SyncName>::default(),
             EguiPlugin::default(),
