@@ -27,7 +27,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     }
 
     fn send_data(&mut self, data: Vec<SessionAction<TSendables>>) {
-        self.websocket_sender.send(data).unwrap();
+        let _ = self.websocket_sender.send(data);
     }
 }
 
