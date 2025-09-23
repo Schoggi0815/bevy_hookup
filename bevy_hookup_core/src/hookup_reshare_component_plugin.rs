@@ -4,6 +4,8 @@ use bevy::prelude::*;
 
 use crate::{
     external_component::ExternalComponent,
+    from_session::FromSession,
+    hookup_component_plugin::send_owned,
     owner_component::Owner,
     sendable_component::SendableComponent,
     session::Session,
@@ -12,128 +14,65 @@ use crate::{
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
 
-pub struct HookupComponentPlugin<
+pub struct HookupReshareComponentPlugin<
     TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
-> {
-    _phantom: PhantomData<TSendables>,
-    _phantom_component: PhantomData<TComponent>,
-}
+    TComponent: SendableComponent<TSendables> + Send + Sync + 'static + PartialEq,
+>(PhantomData<TSendables>, PhantomData<TComponent>);
 
 impl<
     TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
-> Default for HookupComponentPlugin<TSendables, TComponent>
+    TComponent: SendableComponent<TSendables> + Send + Sync + 'static + PartialEq,
+> Default for HookupReshareComponentPlugin<TSendables, TComponent>
 {
     fn default() -> Self {
-        Self {
-            _phantom: Default::default(),
-            _phantom_component: Default::default(),
-        }
+        Self(Default::default(), Default::default())
     }
 }
 
 impl<
     TSendables: 'static + Send + Sync + Clone,
-    TComponent: SendableComponent<TSendables> + 'static + Send + Sync,
-> Plugin for HookupComponentPlugin<TSendables, TComponent>
+    TComponent: SendableComponent<TSendables> + 'static + Send + Sync + PartialEq,
+> Plugin for HookupReshareComponentPlugin<TSendables, TComponent>
 {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_systems(
             FixedUpdate,
             (
                 send_owned::<TSendables, TComponent>,
+                send_changes_shared::<TSendables, TComponent>,
                 check_session_channels::<TSendables, TComponent>,
             ),
         );
     }
 }
 
-pub fn send_owned<
+fn send_changes_shared<
     TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+    TComponent: SendableComponent<TSendables> + Send + Sync + 'static + PartialEq,
 >(
-    owned_components: Query<(
-        &mut Owner<TComponent>,
-        Entity,
-        &SyncEntity,
-        Option<Ref<SyncEntityOwner>>,
-    )>,
+    shared_components: Query<
+        (&Shared<TComponent>, &SyncEntity, &FromSession),
+        Changed<Shared<TComponent>>,
+    >,
     mut sessions: Query<&mut Session<TSendables>>,
-    mut commands: Commands,
 ) {
-    for (mut owned_component, owned_entity, sync_entity, sync_owner) in owned_components {
-        let component_changed = owned_component.is_changed();
-        let sync_owner_changed = if let Some(ref sync_owner) = sync_owner {
-            sync_owner.is_changed()
-        } else {
-            false
+    for (shared, sync, from_session) in shared_components {
+        let Some(mut session) = sessions
+            .iter_mut()
+            .find(|session| session.get_session_id() == from_session.session_id)
+        else {
+            continue;
         };
 
-        if !component_changed && !sync_owner_changed {
-            continue;
-        }
+        let external_component = ExternalComponent::new(sync.sync_id, shared.component_id);
 
-        let external_component =
-            ExternalComponent::new(sync_entity.sync_id, owned_component.component_id);
-
-        if owned_component.remove {
-            for mut session in sessions.iter_mut().filter(|s| {
-                owned_component
-                    .session_read_filter
-                    .allow_session(&s.get_session_id())
-            }) {
-                session.component_removed(external_component);
-            }
-
-            commands.entity(owned_entity).remove::<Owner<TComponent>>();
-            continue;
-        }
-
-        let sendable = owned_component.get_inner().to_sendable();
-        let session_filter = owned_component.session_read_filter.clone();
-
-        for mut session in sessions.iter_mut() {
-            let is_component_allowed = session_filter.allow_session(&session.get_session_id());
-            let is_on = owned_component
-                .on_sessions
-                .contains(&session.get_session_id());
-
-            let is_entity_allowed = if let Some(ref sync_owner) = sync_owner
-                && !sync_owner
-                    .session_read_filter
-                    .allow_session(&session.get_session_id())
-            {
-                false
-            } else {
-                true
-            };
-
-            let is_allowed = is_component_allowed && is_entity_allowed;
-
-            if is_allowed && !is_on {
-                session.component_added(external_component, sendable.clone());
-                owned_component.on_sessions.push(session.get_session_id());
-            } else if is_allowed && is_on {
-                session.componend_updated(external_component, sendable.clone());
-            } else if is_on && !is_allowed {
-                if is_entity_allowed {
-                    session.component_removed(external_component);
-                }
-                owned_component.on_sessions = owned_component
-                    .on_sessions
-                    .clone()
-                    .into_iter()
-                    .filter(|sid| *sid != session.get_session_id())
-                    .collect();
-            }
-        }
+        session.component_shared_updated(external_component, shared.inner.to_sendable());
     }
 }
 
 fn check_session_channels<
     TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+    TComponent: SendableComponent<TSendables> + Send + Sync + 'static + PartialEq,
 >(
     sessions: Query<&Session<TSendables>>,
     sync_entites: Query<(Entity, &SyncEntity, Option<&SyncEntityOwner>)>,
@@ -196,6 +135,10 @@ fn check_session_channels<
                         continue;
                     };
 
+                    if sended_component == shared_component.inner {
+                        continue;
+                    }
+
                     shared_component.update_inner(sended_component);
                 }
                 SessionAction::UpdateSharedComponent {
@@ -216,13 +159,17 @@ fn check_session_channels<
                     };
 
                     if !owned_component
-                        .session_read_filter
+                        .session_write_filter
                         .allow_session(&session.get_session_id())
                     {
                         warn!(
                             "Session [{:?}] tried to update unallowed component!",
                             session.get_session_id()
                         );
+                        continue;
+                    }
+
+                    if sended_component == owned_component.inner {
                         continue;
                     }
 

@@ -59,8 +59,25 @@ impl<TSendables> Session<TSendables> {
         external_component: ExternalComponent,
         component_data: TSendables,
     ) {
+        info!("COMPONENT UPDATED: {:?}", external_component.component_id);
         self.message_collection
             .push(SessionAction::UpdateComponent {
+                component_data,
+                external_component,
+            });
+    }
+
+    pub fn component_shared_updated(
+        &mut self,
+        external_component: ExternalComponent,
+        component_data: TSendables,
+    ) {
+        info!(
+            "COMPONENT SHARED UPDATED: {:?}",
+            external_component.component_id
+        );
+        self.message_collection
+            .push(SessionAction::UpdateSharedComponent {
                 component_data,
                 external_component,
             });

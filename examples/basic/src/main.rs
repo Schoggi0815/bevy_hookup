@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_hookup_core::{
     hook_session::SessionMessenger, hookup_component_plugin::HookupComponentPlugin,
+    hookup_reshare_component_plugin::HookupReshareComponentPlugin,
     hookup_sendable_plugin::HookupSendablePlugin, owner_component::Owner,
     session_filter::SessionFilter, shared::Shared, sync_entity::SyncEntityOwner,
 };
@@ -33,7 +34,7 @@ async fn main() {
         .add_plugins((
             DefaultPlugins,
             HookupSendablePlugin::<Sendables>::default(),
-            HookupComponentPlugin::<Sendables, TestComponent>::default(),
+            HookupReshareComponentPlugin::<Sendables, TestComponent>::default(),
             HookupComponentPlugin::<Sendables, TestComponent2>::default(),
             HookupComponentPlugin::<Sendables, SyncName>::default(),
             EguiPlugin::default(),
@@ -55,10 +56,8 @@ fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
             SyncEntityOwner::new(),
             Name::new("Hello"),
             Owner::new(TestComponent { test_field: 2 }),
-            Owner::new_with_filter(
-                TestComponent2 { test_field: 4 },
-                SessionFilter::Whitelist(Vec::new()),
-            ),
+            Owner::new(TestComponent2 { test_field: 4 })
+                .with_read_filter(SessionFilter::Whitelist(Vec::new())),
         ));
     }
 }

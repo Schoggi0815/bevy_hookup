@@ -11,7 +11,8 @@ pub struct SyncEntity {
 #[require(SyncEntity)]
 pub struct SyncEntityOwner {
     pub on_sessions: Vec<SessionId>,
-    pub session_filter: SessionFilter,
+    pub session_read_filter: SessionFilter,
+    pub session_write_filter: SessionFilter,
     pub remove: bool,
 }
 
@@ -20,7 +21,8 @@ impl SyncEntityOwner {
         Self {
             remove: false,
             on_sessions: Vec::new(),
-            session_filter: SessionFilter::default(),
+            session_read_filter: SessionFilter::AllowAll,
+            session_write_filter: SessionFilter::AllowNone,
         }
     }
 }

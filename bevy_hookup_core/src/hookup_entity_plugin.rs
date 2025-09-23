@@ -45,7 +45,7 @@ fn send_entites<TSendables: Send + Sync + 'static + Clone>(
         if owner.remove {
             for mut session in sessions
                 .iter_mut()
-                .filter(|s| owner.session_filter.allow_session(&s.get_session_id()))
+                .filter(|s| owner.session_read_filter.allow_session(&s.get_session_id()))
             {
                 session.entity_removed(sync.sync_id);
             }
@@ -57,7 +57,7 @@ fn send_entites<TSendables: Send + Sync + 'static + Clone>(
         for mut session in sessions.iter_mut() {
             let session_id = session.get_session_id();
             let in_session = owner.on_sessions.contains(&session_id);
-            let allowed_in_session = owner.session_filter.allow_session(&session_id);
+            let allowed_in_session = owner.session_read_filter.allow_session(&session_id);
             if in_session && !allowed_in_session {
                 session.entity_removed(sync.sync_id);
                 owner.on_sessions = owner
@@ -81,7 +81,7 @@ fn init_session<TSendables: Send + Sync + 'static + Clone>(
     for mut session in sessions {
         for (mut owner, sync) in sync_entities.iter_mut() {
             if !owner
-                .session_filter
+                .session_read_filter
                 .allow_session(&session.get_session_id())
             {
                 continue;

@@ -2,9 +2,8 @@ use bevy::reflect::Reflect;
 
 use crate::hook_session::SessionId;
 
-#[derive(Reflect, Clone, Default)]
+#[derive(Reflect, Clone)]
 pub enum SessionFilter {
-    #[default]
     AllowAll,
     AllowNone,
     Blacklist(Vec<SessionId>),

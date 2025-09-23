@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::all_sendables::Sendables;
 
-#[derive(Default, Clone, Copy, Reflect, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, Reflect, Serialize, Deserialize, PartialEq)]
 pub struct TestComponent {
     pub test_field: i32,
 }

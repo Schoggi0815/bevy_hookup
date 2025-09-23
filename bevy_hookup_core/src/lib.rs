@@ -3,6 +3,7 @@ pub mod from_session;
 pub mod hook_session;
 pub mod hookup_component_plugin;
 pub mod hookup_entity_plugin;
+pub mod hookup_reshare_component_plugin;
 pub mod hookup_sendable_plugin;
 pub mod owner_component;
 pub mod sendable_component;
