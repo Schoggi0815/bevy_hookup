@@ -4,12 +4,14 @@ A simple library for syncing bevy components over arbitrary sessions.
 
 This repo consists of multiple crates:
 - `bevy_hookup_core`: The core part of the syncing logic, not very useful without a session implementation.
+- `bevy_hookup_macros`: This crate provides some helper macros.
 - `bevy_hookup_messenger_self`: The simplest implementation of a session, which just hooks into the same world. This can be used for singleplayer implementations. With this implementation the Entity IDs will be changed for the shared entities, so you don't have collisions of Entity IDs with the shared components.
 - `bevy_hookup_messenger_websocket`: A websocket implementation for the session. It has a server and client part, but they are only different when building the connection, the sharing of entities and components works in both directions the same way.
 
 ## Examples
 
-For sharing a component you need a struct that implements the `SendableComponent<TSendables>` trait. You will also need to define the `TSendables` type, this is used to Serialize the shared components to one common type, this makes it easy for serialization and deserialization.
+The `Sendable` type needs to implement `From<&TComponent>` and `Into<Option<TComponent>>` for every component you want to send.
+The `bevy_hookup_macros` crate provides a simple macro to do this for single-field enum entries, which implement clone, just derive `Sendable` for the enum and add the `sendable` attribute to every field you want this to be implemented.
 
 The following example shows how to implement a `SyncName` component which syncs the name of entites.
 This works over all sessions, for simplicity the `SelfSession` is used here.
@@ -18,8 +20,10 @@ This works over all sessions, for simplicity the `SelfSession` is used here.
 
 `sendables.rs`
 ```rust
-#[derive(Clone, Serialize, Deserialize)]
+// The sendable macro is from the `bevy_hookup_macros` crate.
+#[derive(Clone, Sendable, Serialize, Deserialize)]
 pub enum Sendables {
+    #[sendable]
     SyncName(SyncName),
     // more components would be added here...
 }
@@ -33,19 +37,6 @@ pub enum Sendables {
 #[derive(Default, Clone, Reflect, Serialize, Deserialize)]
 pub struct SyncName {
     pub name: String,
-}
-
-impl SendableComponent<Sendables> for SyncName {
-    fn to_sendable(&self) -> Sendables {
-        Sendables::SyncName(self.clone())
-    }
-
-    fn from_sendable(sendable: Sendables) -> Option<Self> {
-        match sendable {
-            Sendables::SyncName(sync_name) => Some(sync_name),
-            _ => None,
-        }
-    }
 }
 ```
 
