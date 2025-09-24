@@ -814,7 +814,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_core"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "bevy",
  "crossbeam",
@@ -829,10 +829,20 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_hookup_core",
+ "bevy_hookup_macros",
  "bevy_hookup_messenger_self",
  "bevy_hookup_messenger_websocket",
  "serde",
  "tokio",
+]
+
+[[package]]
+name = "bevy_hookup_macros"
+version = "1.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

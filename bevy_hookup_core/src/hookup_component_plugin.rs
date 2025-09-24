@@ -5,7 +5,6 @@ use bevy::prelude::*;
 use crate::{
     external_component::ExternalComponent,
     owner_component::Owner,
-    sendable_component::SendableComponent,
     session::Session,
     session_action::SessionAction,
     shared::Shared,
@@ -13,16 +12,16 @@ use crate::{
 };
 
 pub struct HookupComponentPlugin<
-    TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TComponent> + Into<Option<TComponent>>,
+    TComponent: Send + Sync + 'static,
 > {
     _phantom: PhantomData<TSendables>,
     _phantom_component: PhantomData<TComponent>,
 }
 
 impl<
-    TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TComponent> + Into<Option<TComponent>>,
+    TComponent: Send + Sync + 'static,
 > Default for HookupComponentPlugin<TSendables, TComponent>
 {
     fn default() -> Self {
@@ -34,8 +33,8 @@ impl<
 }
 
 impl<
-    TSendables: 'static + Send + Sync + Clone,
-    TComponent: SendableComponent<TSendables> + 'static + Send + Sync,
+    TSendables: 'static + Send + Sync + Clone + for<'a> From<&'a TComponent> + Into<Option<TComponent>>,
+    TComponent: 'static + Send + Sync,
 > Plugin for HookupComponentPlugin<TSendables, TComponent>
 {
     fn build(&self, app: &mut bevy::app::App) {
@@ -50,8 +49,8 @@ impl<
 }
 
 pub fn send_owned<
-    TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TComponent> + Into<Option<TComponent>>,
+    TComponent: Send + Sync + 'static,
 >(
     owned_components: Query<(
         &mut Owner<TComponent>,
@@ -90,7 +89,7 @@ pub fn send_owned<
             continue;
         }
 
-        let sendable = owned_component.get_inner().to_sendable();
+        let sendable = TSendables::from(owned_component.get_inner());
         let session_filter = owned_component.session_read_filter.clone();
 
         for mut session in sessions.iter_mut() {
@@ -132,8 +131,8 @@ pub fn send_owned<
 }
 
 fn check_session_channels<
-    TSendables: Send + Sync + 'static + Clone,
-    TComponent: SendableComponent<TSendables> + Send + Sync + 'static,
+    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TComponent> + Into<Option<TComponent>>,
+    TComponent: Send + Sync + 'static,
 >(
     sessions: Query<&Session<TSendables>>,
     sync_entites: Query<(Entity, &SyncEntity, Option<&SyncEntityOwner>)>,
@@ -148,7 +147,8 @@ fn check_session_channels<
                     ref component_data,
                     ref external_component,
                 } => {
-                    let Some(sended_component) = TComponent::from_sendable(component_data.clone())
+                    let Some(sended_component) =
+                        Into::<Option<TComponent>>::into(component_data.clone())
                     else {
                         unused_actions.push(session_action);
                         continue;
@@ -182,7 +182,8 @@ fn check_session_channels<
                     ref component_data,
                     ref external_component,
                 } => {
-                    let Some(sended_component) = TComponent::from_sendable(component_data.clone())
+                    let Some(sended_component) =
+                        Into::<Option<TComponent>>::into(component_data.clone())
                     else {
                         unused_actions.push(session_action);
                         continue;
