@@ -13,7 +13,6 @@ pub struct Session<TSendables> {
     messenger: Box<dyn SessionMessenger<TSendables> + Send + Sync>,
     message_collection: Vec<SessionAction<TSendables>>,
     pub channels: SessionChannels<TSendables>,
-    pub remove: bool,
 }
 
 impl<TSendables> Session<TSendables> {
@@ -24,7 +23,6 @@ impl<TSendables> Session<TSendables> {
         Self {
             messenger,
             channels,
-            remove: false,
             message_collection: Vec::new(),
         }
     }

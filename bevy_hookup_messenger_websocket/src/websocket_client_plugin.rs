@@ -38,7 +38,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
 {
     fn manage_client_sessions(
         websocket_clients: Query<&WebsocketClient<TSendables>>,
-        mut sessions: Query<&mut Session<TSendables>>,
+        sessions: Query<(Entity, &Session<TSendables>)>,
         mut commands: Commands,
     ) {
         for session in websocket_clients
@@ -51,10 +51,10 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
                 }
                 SessionMessage::Remove(session_id) => {
                     let session = sessions
-                        .iter_mut()
-                        .find(|s| s.get_session_id() == session_id);
-                    if let Some(mut session) = session {
-                        session.remove = true;
+                        .iter()
+                        .find(|(_, s)| s.get_session_id() == session_id);
+                    if let Some((entity, _)) = session {
+                        commands.entity(entity).despawn();
                     }
                 }
             }

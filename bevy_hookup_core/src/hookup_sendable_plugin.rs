@@ -21,8 +21,8 @@ impl<TSendables: Send + Sync + 'static + Clone> Default for HookupSendablePlugin
 impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupSendablePlugin<TSendables> {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_plugins(HookupEntityPlugin::<TSendables>::default())
-            .add_systems(Update, Self::remove_session)
-            .add_systems(FixedPostUpdate, Self::send_session_messages);
+            .add_systems(FixedPostUpdate, Self::send_session_messages)
+            .add_observer(Self::remove_session);
     }
 }
 
@@ -34,25 +34,23 @@ impl<TSendables: Send + Sync + 'static + Clone> HookupSendablePlugin<TSendables>
     }
 
     pub fn remove_session(
-        sessions: Query<(Entity, &Session<TSendables>), Changed<Session<TSendables>>>,
+        trigger: Trigger<OnRemove, Session<TSendables>>,
+        sessions: Query<&Session<TSendables>>,
         from_sesions: Query<(Entity, &FromSession)>,
         mut commands: Commands,
     ) {
-        for (session_entity, session) in sessions {
-            if !session.remove {
-                continue;
-            }
+        let Ok(removed_session) = sessions.get(trigger.target()) else {
+            warn!("Removed session not found!");
+            return;
+        };
 
-            let session_id = session.get_session_id();
+        let session_id = removed_session.get_session_id();
 
-            commands.entity(session_entity).despawn();
-
-            for (from_entity, _) in from_sesions
-                .iter()
-                .filter(|fs| fs.1.session_id == session_id)
-            {
-                commands.entity(from_entity).despawn();
-            }
+        for (from_entity, _) in from_sesions
+            .iter()
+            .filter(|fs| fs.1.session_id == session_id)
+        {
+            commands.entity(from_entity).despawn();
         }
     }
 }
