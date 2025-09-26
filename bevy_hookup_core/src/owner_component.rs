@@ -9,7 +9,6 @@ pub struct Owner<T> {
     #[deref]
     pub inner: T,
     pub component_id: SyncComponentId,
-    pub remove: bool,
     pub on_sessions: Vec<SessionId>,
     pub session_read_filter: SessionFilter,
 }
@@ -19,7 +18,6 @@ impl<T> Owner<T> {
         Self {
             inner,
             component_id: SyncComponentId::new(),
-            remove: false,
             on_sessions: Vec::new(),
             session_read_filter: SessionFilter::AllowAll,
         }

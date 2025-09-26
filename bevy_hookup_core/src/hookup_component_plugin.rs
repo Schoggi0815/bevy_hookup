@@ -44,7 +44,46 @@ impl<
                 send_owned::<TSendables, TComponent>,
                 check_session_channels::<TSendables, TComponent>,
             ),
-        );
+        )
+        .add_observer(send_removed_owned::<TSendables, TComponent>);
+    }
+}
+
+fn send_removed_owned<
+    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TComponent> + Into<Option<TComponent>>,
+    TComponent: Send + Sync + 'static,
+>(
+    trigger: Trigger<OnRemove, Owner<TComponent>>,
+    sync_entities: Query<(&SyncEntity, &Owner<TComponent>, Option<&SyncEntityOwner>)>,
+    sessions: Query<&mut Session<TSendables>>,
+) {
+    let Ok((removed_entity, removed_owner, removed_entity_owner)) =
+        sync_entities.get(trigger.target())
+    else {
+        warn!("Removed Owner not found!");
+        return;
+    };
+
+    let external_component =
+        ExternalComponent::new(removed_entity.sync_id, removed_owner.component_id);
+
+    for mut session in sessions {
+        if let Some(removed_entity_owner) = removed_entity_owner
+            && !removed_entity_owner
+                .session_read_filter
+                .allow_session(&session.get_session_id())
+        {
+            continue;
+        }
+
+        if !removed_owner
+            .session_read_filter
+            .allow_session(&session.get_session_id())
+        {
+            continue;
+        }
+
+        session.component_removed(external_component);
     }
 }
 
@@ -54,14 +93,12 @@ pub fn send_owned<
 >(
     owned_components: Query<(
         &mut Owner<TComponent>,
-        Entity,
         &SyncEntity,
         Option<Ref<SyncEntityOwner>>,
     )>,
     mut sessions: Query<&mut Session<TSendables>>,
-    mut commands: Commands,
 ) {
-    for (mut owned_component, owned_entity, sync_entity, sync_owner) in owned_components {
+    for (mut owned_component, sync_entity, sync_owner) in owned_components {
         let component_changed = owned_component.is_changed();
         let sync_owner_changed = if let Some(ref sync_owner) = sync_owner {
             sync_owner.is_changed()
@@ -75,19 +112,6 @@ pub fn send_owned<
 
         let external_component =
             ExternalComponent::new(sync_entity.sync_id, owned_component.component_id);
-
-        if owned_component.remove {
-            for mut session in sessions.iter_mut().filter(|s| {
-                owned_component
-                    .session_read_filter
-                    .allow_session(&s.get_session_id())
-            }) {
-                session.component_removed(external_component);
-            }
-
-            commands.entity(owned_entity).remove::<Owner<TComponent>>();
-            continue;
-        }
 
         let sendable = TSendables::from(owned_component.get_inner());
         let session_filter = owned_component.session_read_filter.clone();

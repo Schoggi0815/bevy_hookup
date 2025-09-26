@@ -13,13 +13,11 @@ pub struct SyncEntityOwner {
     pub on_sessions: Vec<SessionId>,
     pub session_read_filter: SessionFilter,
     pub session_write_filter: SessionFilter,
-    pub remove: bool,
 }
 
 impl SyncEntityOwner {
     pub fn new() -> Self {
         Self {
-            remove: false,
             on_sessions: Vec::new(),
             session_read_filter: SessionFilter::AllowAll,
             session_write_filter: SessionFilter::AllowNone,

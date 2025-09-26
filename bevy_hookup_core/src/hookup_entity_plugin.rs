@@ -32,28 +32,38 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
                     init_session::<TSendables>,
                     check_entity_channel::<TSendables>,
                 ),
-            );
+            )
+            .add_observer(send_removed_entites::<TSendables>);
+    }
+}
+
+fn send_removed_entites<TSendables: Send + Sync + 'static + Clone>(
+    trigger: Trigger<OnRemove, SyncEntityOwner>,
+    sync_entities: Query<(&SyncEntity, &SyncEntityOwner)>,
+    sessions: Query<&mut Session<TSendables>>,
+) {
+    let Ok((removed_entity, removed_owner)) = sync_entities.get(trigger.target()) else {
+        warn!("Couldn't find removed sync entity.");
+        return;
+    };
+
+    for mut session in sessions {
+        if !removed_owner
+            .session_read_filter
+            .allow_session(&session.get_session_id())
+        {
+            continue;
+        }
+
+        session.entity_removed(removed_entity.sync_id);
     }
 }
 
 fn send_entites<TSendables: Send + Sync + 'static + Clone>(
     mut sessions: Query<&mut Session<TSendables>>,
-    sync_entities: Query<(Entity, &mut SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
-    mut commands: Commands,
+    sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
 ) {
-    for (entity, mut owner, sync) in sync_entities {
-        if owner.remove {
-            for mut session in sessions
-                .iter_mut()
-                .filter(|s| owner.session_read_filter.allow_session(&s.get_session_id()))
-            {
-                session.entity_removed(sync.sync_id);
-            }
-            commands.entity(entity).despawn();
-
-            continue;
-        }
-
+    for (mut owner, sync) in sync_entities {
         for mut session in sessions.iter_mut() {
             let session_id = session.get_session_id();
             let in_session = owner.on_sessions.contains(&session_id);
