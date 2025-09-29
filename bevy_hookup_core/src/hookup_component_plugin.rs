@@ -114,11 +114,6 @@ pub fn send_owned<
             continue;
         }
 
-        info!(
-            "Sending updated for {:?}",
-            SendComponentSet::<TComponent>::default()
-        );
-
         let external_component =
             ExternalComponent::new(sync_entity.sync_id, owned_component.component_id);
 
