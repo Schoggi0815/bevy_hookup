@@ -5,6 +5,8 @@ use bevy::prelude::*;
 use crate::{
     external_component::ExternalComponent,
     owner_component::Owner,
+    receive_component_set::ReceiveComponentSet,
+    send_component_set::SendComponentSet,
     session::Session,
     session_action::SessionAction,
     shared::Shared,
@@ -41,8 +43,10 @@ impl<
         app.add_systems(
             FixedUpdate,
             (
-                send_owned::<TSendables, TComponent>,
-                check_session_channels::<TSendables, TComponent>,
+                send_owned::<TSendables, TComponent>
+                    .in_set(SendComponentSet::<TComponent>::default()),
+                check_session_channels::<TSendables, TComponent>
+                    .in_set(ReceiveComponentSet::<TComponent>::default()),
             ),
         )
         .add_observer(send_removed_owned::<TSendables, TComponent>);
@@ -109,6 +113,11 @@ pub fn send_owned<
         if !component_changed && !sync_owner_changed {
             continue;
         }
+
+        info!(
+            "Sending updated for {:?}",
+            SendComponentSet::<TComponent>::default()
+        );
 
         let external_component =
             ExternalComponent::new(sync_entity.sync_id, owned_component.component_id);

@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_core"
-version = "4.2.1"
+version = "4.3.0"
 edition = "2024"
 description = "The core library of the bevy_hookup library"
 readme = "../README.md"

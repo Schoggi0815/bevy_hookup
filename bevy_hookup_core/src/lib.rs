@@ -5,6 +5,8 @@ pub mod hookup_component_plugin;
 pub mod hookup_entity_plugin;
 pub mod hookup_sendable_plugin;
 pub mod owner_component;
+pub mod receive_component_set;
+pub mod send_component_set;
 pub mod session;
 pub mod session_action;
 pub mod session_filter;
