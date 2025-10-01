@@ -38,11 +38,11 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
 }
 
 fn send_removed_entites<TSendables: Send + Sync + 'static + Clone>(
-    trigger: Trigger<OnRemove, SyncEntityOwner>,
+    trigger: On<Remove, SyncEntityOwner>,
     sync_entities: Query<(&SyncEntity, &SyncEntityOwner)>,
     sessions: Query<&mut Session<TSendables>>,
 ) {
-    let Ok((removed_entity, removed_owner)) = sync_entities.get(trigger.target()) else {
+    let Ok((removed_entity, removed_owner)) = sync_entities.get(trigger.entity) else {
         warn!("Couldn't find removed sync entity.");
         return;
     };

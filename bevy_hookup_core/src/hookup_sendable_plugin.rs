@@ -34,12 +34,12 @@ impl<TSendables: Send + Sync + 'static + Clone> HookupSendablePlugin<TSendables>
     }
 
     pub fn remove_session(
-        trigger: Trigger<OnRemove, Session<TSendables>>,
+        trigger: On<Remove, Session<TSendables>>,
         sessions: Query<&Session<TSendables>>,
         from_sesions: Query<(Entity, &FromSession)>,
         mut commands: Commands,
     ) {
-        let Ok(removed_session) = sessions.get(trigger.target()) else {
+        let Ok(removed_session) = sessions.get(trigger.entity) else {
             warn!("Removed session not found!");
             return;
         };

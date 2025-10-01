@@ -57,12 +57,12 @@ fn send_removed_owned<
     TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TComponent> + Into<Option<TComponent>>,
     TComponent: Send + Sync + 'static,
 >(
-    trigger: Trigger<OnRemove, Owner<TComponent>>,
+    trigger: On<Remove, Owner<TComponent>>,
     sync_entities: Query<(&SyncEntity, &Owner<TComponent>, Option<&SyncEntityOwner>)>,
     sessions: Query<&mut Session<TSendables>>,
 ) {
     let Ok((removed_entity, removed_owner, removed_entity_owner)) =
-        sync_entities.get(trigger.target())
+        sync_entities.get(trigger.entity)
     else {
         warn!("Removed Owner not found!");
         return;
