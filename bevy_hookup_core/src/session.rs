@@ -69,6 +69,11 @@ impl<TSendables> Session<TSendables> {
             .push(SessionAction::RemoveComponent { external_component });
     }
 
+    pub fn send_event(&mut self, event_data: TSendables) {
+        self.message_collection
+            .push(SessionAction::SendEvent { event_data });
+    }
+
     pub fn push_messages(&mut self) {
         self.messenger.handle_actions(&self.message_collection);
         self.message_collection.clear();

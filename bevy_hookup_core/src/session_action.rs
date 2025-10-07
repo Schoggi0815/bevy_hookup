@@ -21,6 +21,9 @@ pub enum SessionAction<TSendables> {
     RemoveComponent {
         external_component: ExternalComponent,
     },
+    SendEvent {
+        event_data: TSendables,
+    },
 }
 
 impl<TSendables> SessionAction<TSendables> {
@@ -49,6 +52,7 @@ impl<TSendables> SessionAction<TSendables> {
             Self::RemoveComponent { external_component } => Self::RemoveComponent {
                 external_component: external_component.counterpart(),
             },
+            Self::SendEvent { event_data } => Self::SendEvent { event_data },
         }
     }
 }
