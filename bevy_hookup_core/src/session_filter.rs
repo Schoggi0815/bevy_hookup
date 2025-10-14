@@ -8,6 +8,7 @@ pub enum SessionFilter {
     AllowNone,
     Blacklist(Vec<SessionId>),
     Whitelist(Vec<SessionId>),
+    BlacklistReshare(Vec<SessionId>),
 }
 
 impl SessionFilter {
@@ -16,6 +17,7 @@ impl SessionFilter {
             Self::AllowAll => true,
             Self::AllowNone => false,
             Self::Blacklist(session_ids) => !session_ids.contains(session_id),
+            Self::BlacklistReshare(session_ids) => !session_ids.contains(session_id),
             Self::Whitelist(session_ids) => session_ids.contains(session_id),
         }
     }

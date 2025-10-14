@@ -70,6 +70,9 @@ impl<
                     _ => unused_actions.push(session_action),
                 }
             }
+            unused_actions
+                .into_iter()
+                .for_each(|sa| session.channels.sender.try_send(sa).expect("Unbounded"));
         }
     }
 }

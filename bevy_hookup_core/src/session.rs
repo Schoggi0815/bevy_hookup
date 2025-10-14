@@ -78,6 +78,10 @@ impl<TSendables> Session<TSendables> {
         self.messenger.handle_actions(&self.message_collection);
         self.message_collection.clear();
     }
+
+    pub fn pushes_to_same_world(&self) -> bool {
+        self.messenger.pushes_to_same_world()
+    }
 }
 
 #[derive(Clone)]

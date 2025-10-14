@@ -6,7 +6,7 @@ use crate::{
     external_component::ExternalComponent,
     owner_component::Owner,
     receive_component_set::ReceiveComponentSet,
-    send_component_set::SendComponentSet,
+    send_component_systems::SendComponentSystems,
     session::Session,
     session_action::SessionAction,
     shared::Shared,
@@ -44,7 +44,7 @@ impl<
             FixedUpdate,
             (
                 send_owned::<TSendables, TComponent>
-                    .in_set(SendComponentSet::<TComponent>::default()),
+                    .in_set(SendComponentSystems::<TComponent>::default()),
                 check_session_channels::<TSendables, TComponent>
                     .in_set(ReceiveComponentSet::<TComponent>::default()),
             ),

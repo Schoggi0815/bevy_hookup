@@ -45,4 +45,8 @@ impl<TSendables: Clone + Send + Sync + 'static> SessionMessenger<TSendables>
                 .expect("Unbounded")
         });
     }
+
+    fn pushes_to_same_world(&self) -> bool {
+        true
+    }
 }

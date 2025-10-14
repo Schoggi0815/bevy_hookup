@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_messenger_websocket"
-version = "2.3.2"
+version = "2.4.0"
 edition = "2024"
 description = "The websocket messenger of the bevy_hookup library"
 readme = "./README.md"
@@ -9,7 +9,7 @@ repository = "https://github.com/Schoggi0815/bevy_hookup"
 
 [dependencies]
 bevy = { version = "0.17.2" }
-bevy_hookup_core = { path = "../bevy_hookup_core", version = "4.5.0"}
+bevy_hookup_core = { path = "../bevy_hookup_core", version = "4.6.0"}
 bincode = { version = "2.0.1", features = ["serde"] }
 crossbeam = "0.8.4"
 futures-util = "0.3.31"

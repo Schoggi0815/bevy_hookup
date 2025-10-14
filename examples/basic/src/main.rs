@@ -1,11 +1,17 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::NonSendMarker, prelude::*};
 use bevy_hookup_core::{
     hook_session::SessionMessenger, hookup_component_plugin::HookupComponentPlugin,
     hookup_event_plugin::HookupEventPlugin, hookup_sendable_plugin::HookupSendablePlugin,
-    owner_component::Owner, received_event::ReceivedEvent, send_event::SendEvent,
-    session_filter::SessionFilter, shared::Shared, sync_entity::SyncEntityOwner,
+    owner_component::Owner, received_event::ReceivedEvent,
+    reshare_component_plugin::ReshareComponentPlugin, reshare_entity_plugin::ReshareEntityPlugin,
+    send_event::SendEvent, session_filter::SessionFilter, shared::Shared,
+    sync_entity::SyncEntityOwner,
 };
 use bevy_hookup_messenger_self::self_session::SelfSession;
+use bevy_hookup_messenger_websocket::{
+    websocket_client::WebsocketClient, websocket_client_plugin::WebsocketClientPlugin,
+    websocket_server::WebsocketServer, websocket_server_plugin::WebsocketServerPlugin,
+};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{
@@ -30,16 +36,29 @@ async fn main() {
         .register_type::<Shared<SyncName>>()
         .add_plugins((
             DefaultPlugins,
+            WebsocketClientPlugin::<Sendables>::default(),
+            WebsocketServerPlugin::<Sendables>::default(),
             HookupSendablePlugin::<Sendables>::default(),
             HookupComponentPlugin::<Sendables, TestComponent>::default(),
             HookupComponentPlugin::<Sendables, TestComponent2>::default(),
             HookupComponentPlugin::<Sendables, SyncName>::default(),
+            ReshareComponentPlugin::<Sendables, SyncName>::default(),
+            ReshareEntityPlugin::<Sendables>::default(),
             HookupEventPlugin::<Sendables, TestEvent>::default(),
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (spawn_entity, spawn_session, send_event))
+        .add_systems(
+            Update,
+            (
+                spawn_entity,
+                spawn_session,
+                send_event,
+                spawn_ws_server,
+                spawn_ws_client,
+            ),
+        )
         .add_systems(Update, (update_owner_name, update_shared_name))
         .add_observer(receive_event)
         .run();
@@ -47,6 +66,21 @@ async fn main() {
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera3d::default());
+}
+
+fn spawn_ws_server(mut commands: Commands, input: Res<ButtonInput<KeyCode>>, _: NonSendMarker) {
+    if input.just_pressed(KeyCode::F1) {
+        commands.spawn(WebsocketServer::<Sendables>::new_with_port(1526));
+    }
+}
+
+fn spawn_ws_client(mut commands: Commands, input: Res<ButtonInput<KeyCode>>, _: NonSendMarker) {
+    if input.just_pressed(KeyCode::F2) {
+        commands.spawn(WebsocketClient::<Sendables>::new_with_host_and_port(
+            "127.0.0.1".into(),
+            1526,
+        ));
+    }
 }
 
 fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
@@ -68,7 +102,7 @@ fn spawn_session(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
 }
 
 fn send_event(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
-    if input.just_pressed(KeyCode::KeyE) {
+    if input.just_pressed(KeyCode::F3) {
         commands.trigger(SendEvent::new(TestEvent { test_value: 12 }));
     }
 }

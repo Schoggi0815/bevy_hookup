@@ -20,4 +20,7 @@ pub trait SessionMessenger<TSendables> {
     fn get_session_id(&self) -> SessionId;
     fn get_channels(&self) -> SessionChannels<TSendables>;
     fn handle_actions(&mut self, actions: &Vec<SessionAction<TSendables>>);
+    fn pushes_to_same_world(&self) -> bool {
+        false
+    }
 }
