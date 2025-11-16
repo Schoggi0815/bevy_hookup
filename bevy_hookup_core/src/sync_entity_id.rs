@@ -14,8 +14,4 @@ impl SyncEntityId {
     pub fn new() -> Self {
         Self(rand::random())
     }
-
-    pub fn counterpart(&self) -> Self {
-        Self(u64::MAX - self.0)
-    }
 }

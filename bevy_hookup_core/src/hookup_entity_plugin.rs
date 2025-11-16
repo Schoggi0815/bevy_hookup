@@ -4,7 +4,8 @@ use bevy::prelude::*;
 
 use crate::{
     from_session::FromSession,
-    hookup_entity_systems::HookupEntitySystems,
+    receive_entity_systems::ReceiveEntitySystems,
+    send_entity_systems::SendEntitySystems,
     session::Session,
     session_action::SessionAction,
     sync_entity::{SyncEntity, SyncEntityOwner},
@@ -27,13 +28,14 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
         app.register_type::<SyncEntity>()
             .register_type::<SyncEntityOwner>()
             .add_systems(
-                FixedPreUpdate,
-                (
-                    send_entites::<TSendables>,
-                    init_session::<TSendables>,
-                    check_entity_channel::<TSendables>,
-                )
-                    .in_set(HookupEntitySystems::<TSendables>::default()),
+                FixedUpdate,
+                (send_entites::<TSendables>, init_session::<TSendables>)
+                    .in_set(SendEntitySystems::<TSendables>::default()),
+            )
+            .add_systems(
+                FixedUpdate,
+                (check_entity_channel::<TSendables>,)
+                    .in_set(ReceiveEntitySystems::<TSendables>::default()),
             )
             .add_observer(send_removed_entites::<TSendables>);
     }

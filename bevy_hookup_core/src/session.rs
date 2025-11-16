@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use crossbeam::channel::{Receiver, Sender};
 
 use crate::{
-    external_component::ExternalComponent,
     hook_session::{SessionId, SessionMessenger},
     session_action::SessionAction,
     sync_entity_id::SyncEntityId,
@@ -41,32 +40,24 @@ impl<TSendables> Session<TSendables> {
             .push(SessionAction::RemoveEntity { id: sync_id });
     }
 
-    pub fn component_added(
-        &mut self,
-        external_component: ExternalComponent,
-        component_data: TSendables,
-    ) {
+    pub fn component_added(&mut self, entity_id: SyncEntityId, component_data: TSendables) {
         self.message_collection.push(SessionAction::AddComponent {
             component_data,
-            external_component,
+            entity_id,
         });
     }
 
-    pub fn componend_updated(
-        &mut self,
-        external_component: ExternalComponent,
-        component_data: TSendables,
-    ) {
+    pub fn componend_updated(&mut self, entity_id: SyncEntityId, component_data: TSendables) {
         self.message_collection
             .push(SessionAction::UpdateComponent {
                 component_data,
-                external_component,
+                entity_id,
             });
     }
 
-    pub fn component_removed(&mut self, external_component: ExternalComponent) {
+    pub fn component_removed(&mut self, entity_id: SyncEntityId) {
         self.message_collection
-            .push(SessionAction::RemoveComponent { external_component });
+            .push(SessionAction::RemoveComponent { entity_id });
     }
 
     pub fn send_event(&mut self, event_data: TSendables) {
@@ -77,10 +68,6 @@ impl<TSendables> Session<TSendables> {
     pub fn push_messages(&mut self) {
         self.messenger.handle_actions(&self.message_collection);
         self.message_collection.clear();
-    }
-
-    pub fn pushes_to_same_world(&self) -> bool {
-        self.messenger.pushes_to_same_world()
     }
 }
 

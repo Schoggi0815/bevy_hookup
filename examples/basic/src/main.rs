@@ -1,13 +1,11 @@
 use bevy::{ecs::system::NonSendMarker, prelude::*};
 use bevy_hookup_core::{
-    hook_session::SessionMessenger, hookup_component_plugin::HookupComponentPlugin,
-    hookup_event_plugin::HookupEventPlugin, hookup_sendable_plugin::HookupSendablePlugin,
-    owner_component::Owner, received_event::ReceivedEvent,
+    hookup_component_plugin::HookupComponentPlugin, hookup_event_plugin::HookupEventPlugin,
+    hookup_sendable_plugin::HookupSendablePlugin, received_event::ReceivedEvent,
     reshare_component_plugin::ReshareComponentPlugin, reshare_entity_plugin::ReshareEntityPlugin,
-    send_event::SendEvent, session_filter::SessionFilter, shared::Shared,
+    send_event::SendEvent, session_filter::SessionFilter, share_component::ShareComponent,
     sync_entity::SyncEntityOwner,
 };
-use bevy_hookup_messenger_self::self_session::SelfSession;
 use bevy_hookup_messenger_websocket::{
     websocket_client::WebsocketClient, websocket_client_plugin::WebsocketClientPlugin,
     websocket_server::WebsocketServer, websocket_server_plugin::WebsocketServerPlugin,
@@ -15,12 +13,11 @@ use bevy_hookup_messenger_websocket::{
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{
-    all_sendables::Sendables, sync_name::SyncName, test_component::TestComponent,
-    test_component_2::TestComponent2, test_event::TestEvent,
+    all_sendables::Sendables, test_component::TestComponent, test_component_2::TestComponent2,
+    test_event::TestEvent,
 };
 
 mod all_sendables;
-mod sync_name;
 mod test_component;
 mod test_component_2;
 mod test_event;
@@ -28,12 +25,6 @@ mod test_event;
 #[tokio::main]
 async fn main() {
     App::new()
-        .register_type::<Owner<TestComponent>>()
-        .register_type::<Shared<TestComponent>>()
-        .register_type::<Owner<TestComponent2>>()
-        .register_type::<Shared<TestComponent2>>()
-        .register_type::<Owner<SyncName>>()
-        .register_type::<Shared<SyncName>>()
         .add_plugins((
             DefaultPlugins,
             WebsocketClientPlugin::<Sendables>::default(),
@@ -41,8 +32,8 @@ async fn main() {
             HookupSendablePlugin::<Sendables>::default(),
             HookupComponentPlugin::<Sendables, TestComponent>::default(),
             HookupComponentPlugin::<Sendables, TestComponent2>::default(),
-            HookupComponentPlugin::<Sendables, SyncName>::default(),
-            ReshareComponentPlugin::<Sendables, SyncName>::default(),
+            HookupComponentPlugin::<Sendables, Name>::default(),
+            ReshareComponentPlugin::<Name>::default(),
             ReshareEntityPlugin::<Sendables>::default(),
             HookupEventPlugin::<Sendables, TestEvent>::default(),
             EguiPlugin::default(),
@@ -51,15 +42,8 @@ async fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             Update,
-            (
-                spawn_entity,
-                spawn_session,
-                send_event,
-                spawn_ws_server,
-                spawn_ws_client,
-            ),
+            (spawn_entity, send_event, spawn_ws_server, spawn_ws_client),
         )
-        .add_systems(Update, (update_owner_name, update_shared_name))
         .add_observer(receive_event)
         .run();
 }
@@ -88,16 +72,13 @@ fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
         commands.spawn((
             SyncEntityOwner::new(),
             Name::new("Hello"),
-            Owner::new(TestComponent { test_field: 2 }),
-            Owner::new(TestComponent2 { test_field: 4 })
+            ShareComponent::<Name>::default(),
+            TestComponent { test_field: 2 },
+            ShareComponent::<TestComponent>::default(),
+            TestComponent2 { test_field: 4 },
+            ShareComponent::<TestComponent2>::default()
                 .with_read_filter(SessionFilter::Whitelist(Vec::new())),
         ));
-    }
-}
-
-fn spawn_session(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
-    if input.just_pressed(KeyCode::Enter) {
-        commands.spawn(SelfSession::<Sendables>::new().to_session());
     }
 }
 
@@ -109,26 +90,4 @@ fn send_event(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
 
 fn receive_event(event: On<ReceivedEvent<TestEvent>>) {
     info!("Received event: {:?}", event.event());
-}
-
-fn update_owner_name(
-    mut commands: Commands,
-    names: Query<(Entity, &Name), (Changed<Name>, With<SyncEntityOwner>)>,
-) {
-    for (entity, name) in names {
-        commands.entity(entity).insert(Owner::new(SyncName {
-            name: name.as_str().to_string(),
-        }));
-    }
-}
-
-fn update_shared_name(
-    mut commands: Commands,
-    names: Query<(Entity, &Shared<SyncName>), Changed<Shared<SyncName>>>,
-) {
-    for (entity, shared_name) in names {
-        commands
-            .entity(entity)
-            .insert(Name::new(shared_name.name.clone()));
-    }
 }
