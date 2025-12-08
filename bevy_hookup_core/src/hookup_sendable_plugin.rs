@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
-    from_session::FromSession, hookup_entity_plugin::HookupEntityPlugin, session::Session,
+    from_session::FromSession, hookup_entity_plugin::HookupEntityPlugin,
+    send_entity_systems::SendEntitySystems, session::Session,
 };
 
 pub struct HookupSendablePlugin<TSendables: Send + Sync + 'static + Clone> {
@@ -21,7 +22,10 @@ impl<TSendables: Send + Sync + 'static + Clone> Default for HookupSendablePlugin
 impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupSendablePlugin<TSendables> {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_plugins(HookupEntityPlugin::<TSendables>::default())
-            .add_systems(FixedPostUpdate, Self::send_session_messages)
+            .add_systems(
+                FixedPostUpdate,
+                Self::send_session_messages.in_set(SendEntitySystems::<TSendables>::default()),
+            )
             .add_observer(Self::remove_session);
     }
 }

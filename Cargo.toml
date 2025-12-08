@@ -4,5 +4,6 @@ members = [
     "./bevy_hookup_core",
     "./bevy_hookup_macros",
     "./bevy_hookup_messenger_websocket",
+    "./bevy_hookup_messenger_steamworks",
     "./examples/basic",
 ]

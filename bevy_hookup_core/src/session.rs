@@ -66,6 +66,10 @@ impl<TSendables> Session<TSendables> {
     }
 
     pub fn push_messages(&mut self) {
+        if self.message_collection.is_empty() {
+            return;
+        }
+
         self.messenger.handle_actions(&self.message_collection);
         self.message_collection.clear();
     }
