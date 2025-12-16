@@ -907,6 +907,7 @@ version = "5.0.1"
 dependencies = [
  "bevy",
  "crossbeam",
+ "itertools 0.14.0",
  "rand",
  "serde",
 ]
