@@ -13,13 +13,13 @@ use crate::{
     },
 };
 
-pub struct BufferPlugin<TComponent, TSendables, const BUFFER_SIIZE: usize>(
+pub struct BufferPlugin<TSendables, TComponent, const BUFFER_SIIZE: usize>(
     PhantomData<TComponent>,
     PhantomData<TSendables>,
 );
 
-impl<TComponent, TSendables, const BUFFER_SIIZE: usize> Default
-    for BufferPlugin<TComponent, TSendables, BUFFER_SIIZE>
+impl<TSendables, TComponent, const BUFFER_SIIZE: usize> Default
+    for BufferPlugin<TSendables, TComponent, BUFFER_SIIZE>
 {
     fn default() -> Self {
         Self(Default::default(), Default::default())
@@ -33,9 +33,9 @@ impl<
         + Clone
         + for<'a> From<&'a BufferObject<TComponent>>
         + Into<Option<BufferObject<TComponent>>>,
-    TComponent: Sync + Send + Component<Mutability = Mutable> + Clone + Interpolate + 'static,
+    TComponent: Sync + Send + Component<Mutability = Mutable> + Clone + Interpolate + PartialEq + 'static,
     const BUFFER_SIIZE: usize,
-> Plugin for BufferPlugin<TComponent, TSendables, BUFFER_SIIZE>
+> Plugin for BufferPlugin<TSendables, TComponent, BUFFER_SIIZE>
 {
     fn build(&self, app: &mut App) {
         app.add_plugins(HookupComponentPlugin::<TSendables, BufferObject<TComponent>>::default())
@@ -43,6 +43,8 @@ impl<
                 FixedUpdate,
                 (
                     Self::add_buffer_object.before(SendComponentSystems::<TComponent>::default()),
+                    Self::update_buffer_objects
+                        .before(SendComponentSystems::<TComponent>::default()),
                     Self::update_buffer.in_set(BufferSystems::<TComponent>::default()),
                     Self::add_buffer
                         .before(Self::update_buffer)
@@ -57,8 +59,8 @@ impl<
     }
 }
 
-impl<TComponent: Component + Clone + Interpolate, TSendables, const BUFFER_SIIZE: usize>
-    BufferPlugin<TComponent, TSendables, BUFFER_SIIZE>
+impl<TComponent: Component + Clone + Interpolate + PartialEq, TSendables, const BUFFER_SIIZE: usize>
+    BufferPlugin<TSendables, TComponent, BUFFER_SIIZE>
 {
     fn add_buffer_object(
         no_buffers: Query<(Entity, &TComponent), Without<BufferObject<TComponent>>>,
@@ -68,6 +70,20 @@ impl<TComponent: Component + Clone + Interpolate, TSendables, const BUFFER_SIIZE
             commands
                 .entity(entity)
                 .insert(BufferObject::<TComponent>::new(component.clone()));
+        }
+    }
+
+    pub fn update_buffer_objects(
+        buffer_objects: Query<(&mut BufferObject<TComponent>, &TComponent)>,
+    ) {
+        for (mut update_buffer, component) in buffer_objects {
+            if update_buffer.component == *component && !update_buffer.last_changed {
+                continue;
+            }
+
+            update_buffer.last_changed = update_buffer.component != *component;
+            update_buffer.component = component.clone();
+            update_buffer.index += 1;
         }
     }
 

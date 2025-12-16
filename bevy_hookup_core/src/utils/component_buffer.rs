@@ -29,6 +29,10 @@ impl<TComponent: Clone + Interpolate, const BUFFER_SIZE: usize>
     }
 
     pub fn set_component(&mut self, network_index: u64, component: TComponent) {
+        if network_index < self.current_network_index {
+            return;
+        }
+
         let array_index = (network_index - self.current_network_index) as usize;
 
         if array_index < BUFFER_SIZE {

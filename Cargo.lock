@@ -903,7 +903,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_core"
-version = "5.0.1"
+version = "5.1.0"
 dependencies = [
  "bevy",
  "crossbeam",
@@ -936,7 +936,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_messenger_steamworks"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "bevy",
@@ -952,7 +952,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_messenger_websocket"
-version = "2.5.1"
+version = "2.5.2"
 dependencies = [
  "bevy",
  "bevy_hookup_core",
