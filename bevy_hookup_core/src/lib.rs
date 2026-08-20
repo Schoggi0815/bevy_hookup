@@ -15,6 +15,7 @@ pub mod send_entity_systems;
 pub mod send_event;
 pub mod session;
 pub mod session_action;
+pub mod session_events;
 pub mod session_filter;
 pub mod share_component;
 pub mod sync_entity;

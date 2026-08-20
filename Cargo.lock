@@ -1033,7 +1033,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_core"
-version = "5.4.1"
+version = "5.4.2"
 dependencies = [
  "bevy",
  "crossbeam",

@@ -8,6 +8,7 @@ use crate::{
     send_component_systems::SendComponentSystems,
     session::Session,
     session_action::SessionAction,
+    session_events::{SessionAddedComponent, SessionRemovedComponent, SessionUpdatedComponent},
     share_component::ShareComponent,
     sync_entity::{SyncEntity, SyncEntityOwner},
 };
@@ -205,6 +206,11 @@ impl<
                         }
 
                         commands.entity(entity).insert(sended_component);
+                        commands.trigger(SessionAddedComponent::<TComponent> {
+                            entity,
+                            session_id: session.get_session_id(),
+                            phantom: default(),
+                        });
                     }
                     SessionAction::UpdateComponent {
                         ref component_data,
@@ -217,7 +223,7 @@ impl<
                             continue;
                         };
 
-                        let Some((_, _, _, data)) = sync_entites
+                        let Some((_, entity, _, data)) = sync_entites
                             .iter_mut()
                             .find(|(sync_entity, ..)| sync_entity.sync_id == *entity_id)
                         else {
@@ -229,6 +235,11 @@ impl<
                         };
 
                         *data = sended_component;
+                        commands.trigger(SessionUpdatedComponent::<TComponent> {
+                            entity,
+                            session_id: session.get_session_id(),
+                            phantom: default(),
+                        });
                     }
                     SessionAction::RemoveComponent { entity_id } => {
                         let Some((_, entity, ..)) = sync_entites
@@ -240,6 +251,11 @@ impl<
                         };
 
                         commands.entity(entity).remove::<TComponent>();
+                        commands.trigger(SessionRemovedComponent::<TComponent> {
+                            entity,
+                            session_id: session.get_session_id(),
+                            phantom: default(),
+                        });
                     }
                     _ => {
                         unused_actions.push(session_action);
