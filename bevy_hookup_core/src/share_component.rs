@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{hook_session::SessionId, session_filter::SessionFilter};
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct ShareComponent<TComponent> {
     phantom: PhantomData<TComponent>,
     pub on_sessions: Vec<SessionId>,

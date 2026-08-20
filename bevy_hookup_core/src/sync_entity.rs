@@ -15,6 +15,12 @@ pub struct SyncEntityOwner {
     pub session_write_filter: SessionFilter,
 }
 
+impl Default for SyncEntityOwner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SyncEntityOwner {
     pub fn new() -> Self {
         Self {
