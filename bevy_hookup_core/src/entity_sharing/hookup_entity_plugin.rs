@@ -3,9 +3,10 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
+    entity_sharing::{
+        receive_entity_systems::ReceiveEntitySystems, send_entity_systems::SendEntitySystems,
+    },
     from_session::FromSession,
-    receive_entity_systems::ReceiveEntitySystems,
-    send_entity_systems::SendEntitySystems,
     session::Session,
     session_action::SessionAction,
     sync_entity::{SyncEntity, SyncEntityOwner},

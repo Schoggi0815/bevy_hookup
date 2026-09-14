@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use itertools::{FoldWhile, Itertools};
 
-use crate::utils::interpolate::Interpolate;
+use crate::buffer::interpolate::Interpolate;
 
 #[derive(Component, Debug, Reflect)]
 pub struct ComponentBuffer<TComponent, const BUFFER_SIZE: usize> {
