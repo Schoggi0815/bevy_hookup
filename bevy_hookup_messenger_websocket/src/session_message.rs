@@ -1,6 +1,6 @@
-use bevy_hookup_core::{hook_session::SessionId, session::Session};
+use bevy_hookup_core::connection::{Connection, connection_id::ConnectionId};
 
 pub enum SessionMessage<TSendables> {
-    Add(Session<TSendables>),
-    Remove(SessionId),
+    Add(Connection<TSendables>),
+    Remove(ConnectionId),
 }

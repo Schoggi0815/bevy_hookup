@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
-use bevy_hookup_core::session::Session;
+use bevy_hookup_core::connection::Connection;
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{session_message::SessionMessage, websocket_server::WebsocketServer};
@@ -38,7 +38,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
 {
     fn manage_server_sessions(
         websocket_servers: Query<&WebsocketServer<TSendables>>,
-        sessions: Query<(Entity, &Session<TSendables>)>,
+        sessions: Query<(Entity, &Connection<TSendables>)>,
         mut commands: Commands,
     ) {
         for session in websocket_servers
@@ -52,7 +52,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
                 SessionMessage::Remove(session_id) => {
                     let session = sessions
                         .iter()
-                        .find(|(_, s)| s.get_session_id() == session_id);
+                        .find(|(_, s)| s.get_connection_id() == session_id);
                     if let Some((entity, _)) = session {
                         commands.entity(entity).despawn();
                     }

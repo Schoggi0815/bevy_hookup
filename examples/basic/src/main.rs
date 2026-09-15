@@ -1,10 +1,19 @@
 use bevy::{ecs::system::NonSendMarker, prelude::*};
 use bevy_hookup_core::{
-    hookup_component_plugin::HookupComponentPlugin, hookup_event_plugin::HookupEventPlugin,
-    hookup_sendable_plugin::HookupSendablePlugin, received_event::ReceivedEvent,
-    reshare_component_plugin::ReshareComponentPlugin, reshare_entity_plugin::ReshareEntityPlugin,
-    send_event::SendEvent, session_filter::SessionFilter, share_component::ShareComponent,
-    sync_entity::SyncEntityOwner,
+    component_sharing::{
+        hookup_component_plugin::HookupComponentPlugin, share_component::ShareComponent,
+    },
+    entity_sharing::sync_entity::SyncEntityOwner,
+    event_sharing::{
+        hookup_event_plugin::HookupEventPlugin, received_event::ReceivedEvent,
+        send_event::SendEvent,
+    },
+    filter::Filter,
+    hookup_sendable_plugin::HookupSendablePlugin,
+    resharing::{
+        reshare_component_plugin::ReshareComponentPlugin,
+        reshare_entity_plugin::ReshareEntityPlugin,
+    },
 };
 use bevy_hookup_messenger_websocket::{
     websocket_client::WebsocketClient, websocket_client_plugin::WebsocketClientPlugin,
@@ -77,7 +86,7 @@ fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
             ShareComponent::<TestComponent>::default(),
             TestComponent2 { test_field: 4 },
             ShareComponent::<TestComponent2>::default()
-                .with_read_filter(SessionFilter::Whitelist(Vec::new())),
+                .with_read_filter(Filter::Whitelist(Vec::new())),
         ));
     }
 }

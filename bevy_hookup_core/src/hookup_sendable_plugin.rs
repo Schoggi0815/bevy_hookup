@@ -4,15 +4,16 @@ use bevy::prelude::*;
 
 use crate::{
     connection::{Connection, connection_id::ConnectionId},
-    entity_sharing::{
-        hookup_entity_plugin::HookupEntityPlugin, send_entity_systems::SendEntitySystems,
-    },
+    entity_sharing::hookup_entity_plugin::HookupEntityPlugin,
     origin::Origin,
 };
 
 pub struct HookupSendablePlugin<TSendables: Send + Sync + 'static + Clone> {
     _phantom: PhantomData<TSendables>,
 }
+
+#[derive(SystemSet, Debug, Hash, Clone, PartialEq, Eq)]
+pub struct ReadIncomingSystems;
 
 impl<TSendables: Send + Sync + 'static + Clone> Default for HookupSendablePlugin<TSendables> {
     fn default() -> Self {
@@ -27,16 +28,16 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupSendablePlugin<
         app.add_plugins(HookupEntityPlugin::<TSendables>::default())
             .add_systems(
                 FixedPostUpdate,
-                Self::send_session_messages.in_set(SendEntitySystems::<TSendables>::default()),
+                Self::read_incoming_messages.in_set(ReadIncomingSystems),
             )
             .add_observer(Self::remove_session);
     }
 }
 
 impl<TSendables: Send + Sync + 'static + Clone> HookupSendablePlugin<TSendables> {
-    pub fn send_session_messages(connections: Query<&mut Connection<TSendables>>) {
-        for mut connections in connections {
-            connections.push_messages();
+    pub fn read_incoming_messages(connections: Query<&mut Connection<TSendables>>) {
+        for mut connection in connections {
+            connection.collect_messages();
         }
     }
 

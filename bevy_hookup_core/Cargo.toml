@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_core"
-version = "5.4.2"
+version = "6.0.0"
 edition = "2024"
 description = "The core library of the bevy_hookup library"
 readme = "../README.md"
@@ -13,3 +13,5 @@ crossbeam = "0.8.4"
 itertools = "0.15.0"
 rand = "0.10.2"
 serde = "1.0.229"
+erased-serde = "0.4.10"
+anyhow = "1.0.104"

@@ -3,12 +3,16 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
-    connection::{Connection, remote_action::RemoteAction},
+    connection::{
+        Connection,
+        remote_action::{EntityAction, RemoteAction},
+    },
     entity_sharing::{
         receive_entity_systems::ReceiveEntitySystems,
         send_entity_systems::SendEntitySystems,
         sync_entity::{SyncEntity, SyncEntityOwner},
     },
+    hookup_sendable_plugin::ReadIncomingSystems,
     origin::Origin,
 };
 
@@ -35,10 +39,14 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
             )
             .add_systems(
                 FixedUpdate,
-                (check_entity_channel::<TSendables>,)
+                check_entity_channel::<TSendables>
                     .in_set(ReceiveEntitySystems::<TSendables>::default()),
             )
-            .add_observer(send_removed_entites::<TSendables>);
+            .add_observer(send_removed_entites::<TSendables>)
+            .configure_sets(
+                FixedUpdate,
+                ReceiveEntitySystems::<TSendables>::default().after(ReadIncomingSystems),
+            );
     }
 }
 
@@ -114,34 +122,36 @@ fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
     sync_entities: Query<(Entity, &SyncEntity)>,
 ) {
     for connection in connections {
-        let mut unused_actions = Vec::new();
-        for session_action in connection.channels.receiver.try_iter() {
-            match session_action {
-                RemoteAction::AddEntity { id } => {
-                    if sync_entities.iter().find(|se| se.1.sync_id == id).is_some() {
+        for (action, id) in connection.messages().filter_map(|ra| match ra {
+            RemoteAction::Entity { action, id } => Some((action, id)),
+            _ => None,
+        }) {
+            let sync_entity = sync_entities
+                .iter()
+                .find(|se| &se.1.sync_id == id)
+                .map(|(e, _)| e);
+
+            match action {
+                EntityAction::Add => {
+                    if sync_entity.is_some() {
+                        warn!("Entity to add already exists");
                         continue;
                     }
 
                     commands.spawn((
-                        SyncEntity::new_from_id(id),
+                        SyncEntity::new_from_id(*id),
                         Origin(connection.get_connection_id()),
                     ));
                 }
-                RemoteAction::RemoveEntity { id } => {
-                    let Some((sync_entity, _)) = sync_entities.iter().find(|se| se.1.sync_id == id)
-                    else {
+                EntityAction::Remove => {
+                    let Some(sync_entity) = sync_entity else {
+                        warn!("Entity to remove doesn't exist");
                         continue;
                     };
 
                     commands.entity(sync_entity).despawn();
                 }
-                _ => {
-                    unused_actions.push(session_action);
-                }
             }
         }
-        unused_actions
-            .into_iter()
-            .for_each(|sa| connection.channels.sender.try_send(sa).expect("unbounded"));
     }
 }

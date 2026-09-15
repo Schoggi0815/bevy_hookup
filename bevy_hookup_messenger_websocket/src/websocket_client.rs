@@ -1,5 +1,7 @@
 use bevy::{ecs::component::Component, log::info};
-use bevy_hookup_core::{hook_session::SessionMessenger, session_action::SessionAction};
+use bevy_hookup_core::connection::{
+    connection_messenger::ConnectionMessenger, remote_action::RemoteAction,
+};
 use bincode::{
     config,
     serde::{decode_from_slice, encode_to_vec},
@@ -54,10 +56,10 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
             let (ws_sender, mut ws_receiver) = mpsc::unbounded_channel();
             let session = WebsocketSession::<TSendables>::new(ws_sender);
             let channels = session.get_channels();
-            let session_id = session.get_session_id();
+            let session_id = session.get_connection_id();
 
             session_sender
-                .try_send(SessionMessage::Add(session.to_session()))
+                .try_send(SessionMessage::Add(session.to_connection()))
                 .expect("Unbounded");
 
             loop {
@@ -71,7 +73,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
                             continue;
                         }
 
-                        let Ok((data, _)) = decode_from_slice::<Vec<SessionAction<TSendables>>, _>(
+                        let Ok((data, _)) = decode_from_slice::<Vec<RemoteAction<TSendables>>, _>(
                             &msg.into_data(),
                             config::standard(),
                         ) else {

@@ -47,6 +47,15 @@ pub fn derive_sendable(input: TokenStream) -> TokenStream {
                         }
                     }
                 }
+
+                impl OfType<#field_type> for #ident {
+                    fn is_of_type(&self) -> bool {
+                        match self {
+                            Self::#variant_name(value) => true,
+                            _ => false,
+                        }
+                    }
+                }
             }
         });
 

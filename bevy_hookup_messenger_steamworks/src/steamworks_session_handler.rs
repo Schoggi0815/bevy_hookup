@@ -1,5 +1,7 @@
 use bevy::{ecs::component::Component, log::error};
-use bevy_hookup_core::{hook_session::SessionMessenger, session_action::SessionAction};
+use bevy_hookup_core::connection::{
+    connection_messenger::ConnectionMessenger, remote_action::RemoteAction,
+};
 use bevy_steamworks::{networking_sockets::NetConnection, networking_types::SendFlags};
 use bincode::{
     config,
@@ -13,8 +15,8 @@ use crate::steamworks_session::SteamworksSession;
 #[derive(Component)]
 pub struct SteamworksSessionHandler<TSendables> {
     connection: NetConnection,
-    handler_receiver: Receiver<Vec<SessionAction<TSendables>>>,
-    actions_sender: Sender<SessionAction<TSendables>>,
+    handler_receiver: Receiver<Vec<RemoteAction<TSendables>>>,
+    actions_sender: Sender<RemoteAction<TSendables>>,
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
@@ -69,7 +71,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
 
             for message in messages {
                 let data = message.data();
-                let (data, _) = match decode_from_slice::<Vec<SessionAction<TSendables>>, _>(
+                let (data, _) = match decode_from_slice::<Vec<RemoteAction<TSendables>>, _>(
                     data,
                     config::standard(),
                 ) {

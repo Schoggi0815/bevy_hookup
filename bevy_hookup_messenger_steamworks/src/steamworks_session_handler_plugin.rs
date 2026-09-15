@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_hookup_core::{
+use bevy_hookup_core::entity_sharing::{
     receive_entity_systems::ReceiveEntitySystems, send_entity_systems::SendEntitySystems,
 };
 use serde::{Serialize, de::DeserializeOwned};

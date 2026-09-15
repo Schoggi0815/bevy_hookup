@@ -4,7 +4,7 @@ use std::{
 };
 
 use bevy::prelude::*;
-use bevy_hookup_core::hook_session::SessionMessenger;
+use bevy_hookup_core::connection::connection_messenger::ConnectionMessenger;
 use bevy_steamworks::{
     Client,
     networking_sockets::{InvalidHandle, ListenSocket},
@@ -62,7 +62,11 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
                         let (handler, session) =
                             SteamworksSessionHandler::<TSendables>::new_pair(connection);
 
-                        commands.spawn((SteamReference(steam_id), session.to_session(), handler));
+                        commands.spawn((
+                            SteamReference(steam_id),
+                            session.to_connection(),
+                            handler,
+                        ));
                     }
                     ListenSocketEvent::Disconnected(disconnected_event) => {
                         let steam_id = disconnected_event

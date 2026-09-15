@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_hookup_core::of_type::OfType;
 use bevy_hookup_macros::Sendable;
 use serde::{Deserialize, Serialize};
 

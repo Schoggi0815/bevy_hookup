@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_macros"
-version = "1.0.0"
+version = "2.0.0"
 edition = "2024"
 description = "The macro library of the bevy_hookup library"
 readme = "../README.md"

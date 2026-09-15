@@ -1,50 +1,49 @@
 use bevy::ecs::component::Component;
-use bevy_hookup_core::{
-    hook_session::{SessionId, SessionMessenger},
-    session::{Session, SessionChannels},
-    session_action::SessionAction,
+use bevy_hookup_core::connection::{
+    Connection, ConnectionChannels, connection_id::ConnectionId,
+    connection_messenger::ConnectionMessenger, remote_action::RemoteAction,
 };
 use crossbeam::channel::{Sender, unbounded};
 use serde::{Serialize, de::DeserializeOwned};
 
 #[derive(Component)]
 pub struct SteamworksSession<TSendables> {
-    session_id: SessionId,
-    channels: SessionChannels<TSendables>,
-    handler_sender: Sender<Vec<SessionAction<TSendables>>>,
+    connection_id: ConnectionId,
+    channels: ConnectionChannels<TSendables>,
+    handler_sender: Sender<Vec<RemoteAction<TSendables>>>,
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     SteamworksSession<TSendables>
 {
-    pub fn new(handler_sender: Sender<Vec<SessionAction<TSendables>>>) -> Self {
+    pub fn new(handler_sender: Sender<Vec<RemoteAction<TSendables>>>) -> Self {
         let (sender, receiver) = unbounded();
 
         Self {
-            session_id: SessionId::default(),
-            channels: SessionChannels { sender, receiver },
+            connection_id: ConnectionId::default(),
+            channels: ConnectionChannels { sender, receiver },
             handler_sender,
         }
     }
 }
 
 impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
-    SessionMessenger<TSendables> for SteamworksSession<TSendables>
+    ConnectionMessenger<TSendables> for SteamworksSession<TSendables>
 {
-    fn to_session(self) -> Session<TSendables> {
+    fn to_connection(self) -> Connection<TSendables> {
         let channels = self.channels.clone();
-        Session::new(Box::new(self), channels)
+        Connection::new(Box::new(self), channels)
     }
 
-    fn get_session_id(&self) -> SessionId {
-        self.session_id
+    fn get_connection_id(&self) -> ConnectionId {
+        self.connection_id
     }
 
-    fn get_channels(&self) -> SessionChannels<TSendables> {
+    fn get_channels(&self) -> ConnectionChannels<TSendables> {
         self.channels.clone()
     }
 
-    fn handle_actions(&mut self, actions: &Vec<SessionAction<TSendables>>) {
+    fn handle_actions(&mut self, actions: &Vec<RemoteAction<TSendables>>) {
         self.handler_sender
             .try_send(actions.clone())
             .expect("Couldn't send actions to handler!");
