@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::sync_entity_id::SyncEntityId;
+use crate::entity_sharing::sync_entity_id::SyncEntityId;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum SessionAction<TSendables> {
+pub enum RemoteAction<TSendables> {
     AddEntity {
         id: SyncEntityId,
     },

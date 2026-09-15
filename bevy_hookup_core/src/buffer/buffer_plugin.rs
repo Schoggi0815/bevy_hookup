@@ -7,10 +7,13 @@ use crate::{
         buffer_object::BufferObject, buffer_systems::BufferSystems, buffered::Buffered,
         component_buffer::ComponentBuffer, interpolate::Interpolate,
     },
-    from_session::FromSession,
-    hookup_component_plugin::HookupComponentPlugin,
-    receive_component_systems::ReceiveComponentSystems,
-    send_component_systems::SendComponentSystems,
+    component_sharing::{
+        hookup_component_plugin::HookupComponentPlugin,
+        receive_component_systems::ReceiveComponentSystems,
+        send_component_systems::SendComponentSystems,
+    },
+    connection::connection_id::ConnectionId,
+    origin::Origin,
 };
 
 pub struct BufferPlugin<TSendables, TComponent, const BUFFER_SIIZE: usize>(
@@ -92,7 +95,7 @@ impl<TComponent: Component + Clone + Interpolate + PartialEq, TSendables, const 
             (Entity, &BufferObject<TComponent>),
             (
                 Without<ComponentBuffer<TComponent, BUFFER_SIIZE>>,
-                With<FromSession>,
+                With<Origin<ConnectionId>>,
             ),
         >,
         mut commands: Commands,

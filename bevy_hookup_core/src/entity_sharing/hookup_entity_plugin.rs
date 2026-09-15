@@ -3,13 +3,13 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
+    connection::{Connection, remote_action::RemoteAction},
     entity_sharing::{
-        receive_entity_systems::ReceiveEntitySystems, send_entity_systems::SendEntitySystems,
+        receive_entity_systems::ReceiveEntitySystems,
+        send_entity_systems::SendEntitySystems,
+        sync_entity::{SyncEntity, SyncEntityOwner},
     },
-    from_session::FromSession,
-    session::Session,
-    session_action::SessionAction,
-    sync_entity::{SyncEntity, SyncEntityOwner},
+    origin::Origin,
 };
 
 pub struct HookupEntityPlugin<TSendables: Send + Sync + 'static + Clone> {
@@ -45,34 +45,34 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TS
 fn send_removed_entites<TSendables: Send + Sync + 'static + Clone>(
     trigger: On<Remove, SyncEntityOwner>,
     sync_entities: Query<(&SyncEntity, &SyncEntityOwner)>,
-    sessions: Query<&mut Session<TSendables>>,
+    connections: Query<&mut Connection<TSendables>>,
 ) {
     let Ok((removed_entity, removed_owner)) = sync_entities.get(trigger.entity) else {
         warn!("Couldn't find removed sync entity.");
         return;
     };
 
-    for mut session in sessions {
+    for mut connection in connections {
         if !removed_owner
             .session_read_filter
-            .allow_session(&session.get_session_id())
+            .is_allowed(&connection.get_connection_id())
         {
             continue;
         }
 
-        session.entity_removed(removed_entity.sync_id);
+        connection.entity_removed(removed_entity.sync_id);
     }
 }
 
 fn send_entites<TSendables: Send + Sync + 'static + Clone>(
-    mut sessions: Query<&mut Session<TSendables>>,
+    mut connections: Query<&mut Connection<TSendables>>,
     sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
 ) {
     for (mut owner, sync) in sync_entities {
-        for mut session in sessions.iter_mut() {
-            let session_id = session.get_session_id();
+        for mut session in connections.iter_mut() {
+            let session_id = session.get_connection_id();
             let in_session = owner.on_sessions.contains(&session_id);
-            let allowed_in_session = owner.session_read_filter.allow_session(&session_id);
+            let allowed_in_session = owner.session_read_filter.is_allowed(&session_id);
             if in_session && !allowed_in_session {
                 session.entity_removed(sync.sync_id);
                 owner.on_sessions = owner
@@ -90,46 +90,44 @@ fn send_entites<TSendables: Send + Sync + 'static + Clone>(
 }
 
 fn init_session<TSendables: Send + Sync + 'static + Clone>(
-    sessions: Query<&mut Session<TSendables>, Added<Session<TSendables>>>,
+    connections: Query<&mut Connection<TSendables>, Added<Connection<TSendables>>>,
     mut sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity)>,
 ) {
-    for mut session in sessions {
+    for mut connection in connections {
         for (mut owner, sync) in sync_entities.iter_mut() {
             if !owner
                 .session_read_filter
-                .allow_session(&session.get_session_id())
+                .is_allowed(&connection.get_connection_id())
             {
                 continue;
             }
 
-            session.entity_added(sync.sync_id);
-            owner.on_sessions.push(session.get_session_id());
+            connection.entity_added(sync.sync_id);
+            owner.on_sessions.push(connection.get_connection_id());
         }
     }
 }
 
 fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
-    sessions: Query<&Session<TSendables>>,
+    connections: Query<&Connection<TSendables>>,
     mut commands: Commands,
     sync_entities: Query<(Entity, &SyncEntity)>,
 ) {
-    for session in sessions {
+    for connection in connections {
         let mut unused_actions = Vec::new();
-        for session_action in session.channels.receiver.try_iter() {
+        for session_action in connection.channels.receiver.try_iter() {
             match session_action {
-                SessionAction::AddEntity { id } => {
+                RemoteAction::AddEntity { id } => {
                     if sync_entities.iter().find(|se| se.1.sync_id == id).is_some() {
                         continue;
                     }
 
                     commands.spawn((
                         SyncEntity::new_from_id(id),
-                        FromSession {
-                            session_id: session.get_session_id(),
-                        },
+                        Origin(connection.get_connection_id()),
                     ));
                 }
-                SessionAction::RemoveEntity { id } => {
+                RemoteAction::RemoveEntity { id } => {
                     let Some((sync_entity, _)) = sync_entities.iter().find(|se| se.1.sync_id == id)
                     else {
                         continue;
@@ -144,6 +142,6 @@ fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
         }
         unused_actions
             .into_iter()
-            .for_each(|sa| session.channels.sender.try_send(sa).expect("unbounded"));
+            .for_each(|sa| connection.channels.sender.try_send(sa).expect("unbounded"));
     }
 }

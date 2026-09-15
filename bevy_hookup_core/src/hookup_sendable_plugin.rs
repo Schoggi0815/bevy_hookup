@@ -3,8 +3,11 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
-    from_session::FromSession, hookup_entity_plugin::HookupEntityPlugin,
-    send_entity_systems::SendEntitySystems, session::Session,
+    connection::{Connection, connection_id::ConnectionId},
+    entity_sharing::{
+        hookup_entity_plugin::HookupEntityPlugin, send_entity_systems::SendEntitySystems,
+    },
+    origin::Origin,
 };
 
 pub struct HookupSendablePlugin<TSendables: Send + Sync + 'static + Clone> {
@@ -31,29 +34,26 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupSendablePlugin<
 }
 
 impl<TSendables: Send + Sync + 'static + Clone> HookupSendablePlugin<TSendables> {
-    pub fn send_session_messages(sessions: Query<&mut Session<TSendables>>) {
-        for mut session in sessions {
-            session.push_messages();
+    pub fn send_session_messages(connections: Query<&mut Connection<TSendables>>) {
+        for mut connections in connections {
+            connections.push_messages();
         }
     }
 
     pub fn remove_session(
-        trigger: On<Remove, Session<TSendables>>,
-        sessions: Query<&Session<TSendables>>,
-        from_sesions: Query<(Entity, &FromSession)>,
+        trigger: On<Remove, Connection<TSendables>>,
+        connections: Query<&Connection<TSendables>>,
+        from_sesions: Query<(Entity, &Origin<ConnectionId>)>,
         mut commands: Commands,
     ) {
-        let Ok(removed_session) = sessions.get(trigger.entity) else {
+        let Ok(removed_connection) = connections.get(trigger.entity) else {
             warn!("Removed session not found!");
             return;
         };
 
-        let session_id = removed_session.get_session_id();
+        let session_id = removed_connection.get_connection_id();
 
-        for (from_entity, _) in from_sesions
-            .iter()
-            .filter(|fs| fs.1.session_id == session_id)
-        {
+        for (from_entity, _) in from_sesions.iter().filter(|(_, o)| o.0 == session_id) {
             commands.entity(from_entity).despawn();
         }
     }

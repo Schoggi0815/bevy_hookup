@@ -3,11 +3,14 @@ use bevy::prelude::*;
 use std::marker::PhantomData;
 
 use crate::{
-    from_session::FromSession,
-    receive_entity_systems::ReceiveEntitySystems,
-    reshare_entity_component::ReshareEntityComponent,
-    session_filter::SessionFilter,
-    sync_entity::{SyncEntity, SyncEntityOwner},
+    connection::connection_id::ConnectionId,
+    entity_sharing::{
+        receive_entity_systems::ReceiveEntitySystems,
+        sync_entity::{SyncEntity, SyncEntityOwner},
+    },
+    filter::Filter,
+    origin::Origin,
+    resharing::reshare_entity_component::ReshareEntityComponent,
 };
 
 pub struct ReshareEntityPlugin<TSendables>(PhantomData<TSendables>);
@@ -33,7 +36,7 @@ where
 impl<TS> ReshareEntityPlugin<TS> {
     fn reshare_entity(
         missing_owners: Query<
-            (Entity, &FromSession),
+            (Entity, &Origin<ConnectionId>),
             (
                 With<ReshareEntityComponent>,
                 With<SyncEntity>,
@@ -47,10 +50,8 @@ impl<TS> ReshareEntityPlugin<TS> {
         for (entity, from_session) in missing_owners {
             commands.entity(entity).insert(
                 SyncEntityOwner::new()
-                    .with_read_filter(SessionFilter::BlacklistReshare(vec![
-                        from_session.session_id,
-                    ]))
-                    .with_write_filter(SessionFilter::Whitelist(vec![from_session.session_id])),
+                    .with_read_filter(Filter::Blacklist(vec![from_session.0]))
+                    .with_write_filter(Filter::Whitelist(vec![from_session.0])),
             );
         }
     }

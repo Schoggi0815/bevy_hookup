@@ -3,11 +3,12 @@ use bevy::prelude::*;
 use std::marker::PhantomData;
 
 use crate::{
-    receive_component_systems::ReceiveComponentSystems,
-    reshare_entity_component::ReshareEntityComponent,
-    send_component_systems::SendComponentSystems,
-    share_component::ShareComponent,
-    sync_entity::{SyncEntity, SyncEntityOwner},
+    component_sharing::{
+        receive_component_systems::ReceiveComponentSystems,
+        send_component_systems::SendComponentSystems, share_component::ShareComponent,
+    },
+    entity_sharing::sync_entity::{SyncEntity, SyncEntityOwner},
+    resharing::reshare_entity_component::ReshareEntityComponent,
 };
 
 pub struct ReshareComponentPlugin<TComponent>(PhantomData<TComponent>);

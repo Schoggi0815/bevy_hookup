@@ -1,6 +1,7 @@
+use bevy::reflect::Reflect;
 use itertools::Itertools;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Reflect, Clone, PartialEq, Eq)]
 pub enum Filter<T> {
     AllowAll,
     AllowNone,

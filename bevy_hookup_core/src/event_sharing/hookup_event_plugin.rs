@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 
 use crate::{
-    received_event::ReceivedEvent, send_event::SendEvent, session::Session,
-    session_action::SessionAction,
+    connection::{Connection, remote_action::RemoteAction},
+    event_sharing::{received_event::ReceivedEvent, send_event::SendEvent},
 };
 
 pub struct HookupEventPlugin<
@@ -44,18 +44,21 @@ impl<
     TEvent: Send + Sync + 'static,
 > HookupEventPlugin<TSendables, TEvent>
 {
-    fn send_events(event: On<SendEvent<TEvent>>, sessions: Query<&mut Session<TSendables>>) {
-        for mut session in sessions {
-            session.send_event((&event.event().event).into());
+    fn send_events(event: On<SendEvent<TEvent>>, connections: Query<&mut Connection<TSendables>>) {
+        for mut connection in connections {
+            connection.send_event((&event.event().event).into());
         }
     }
 
-    fn check_session_channels(sessions: Query<&mut Session<TSendables>>, mut commands: Commands) {
-        for session in sessions {
+    fn check_session_channels(
+        connections: Query<&mut Connection<TSendables>>,
+        mut commands: Commands,
+    ) {
+        for connection in connections {
             let mut unused_actions = Vec::new();
-            for session_action in session.channels.receiver.try_iter() {
+            for session_action in connection.channels.receiver.try_iter() {
                 match session_action {
-                    SessionAction::SendEvent { ref event_data } => {
+                    RemoteAction::SendEvent { ref event_data } => {
                         let Some(event_data) = Into::<Option<TEvent>>::into(event_data.clone())
                         else {
                             unused_actions.push(session_action);
@@ -64,7 +67,7 @@ impl<
 
                         commands.trigger(ReceivedEvent {
                             event: event_data,
-                            from_session: session.get_session_id(),
+                            from_connection: connection.get_connection_id(),
                         });
                     }
                     _ => unused_actions.push(session_action),
@@ -72,7 +75,7 @@ impl<
             }
             unused_actions
                 .into_iter()
-                .for_each(|sa| session.channels.sender.try_send(sa).expect("Unbounded"));
+                .for_each(|sa| connection.channels.sender.try_send(sa).expect("Unbounded"));
         }
     }
 }
