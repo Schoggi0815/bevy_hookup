@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use bevy::{ecs::component::Mutable, prelude::*};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     buffer::{
@@ -16,32 +17,34 @@ use crate::{
     origin::Origin,
 };
 
-pub struct BufferPlugin<TSendables, TComponent, const BUFFER_SIIZE: usize>(
+pub struct BufferPlugin<TComponent, const COMPONENT_ID: u64, const BUFFER_SIIZE: usize>(
     PhantomData<TComponent>,
-    PhantomData<TSendables>,
 );
 
-impl<TSendables, TComponent, const BUFFER_SIIZE: usize> Default
-    for BufferPlugin<TSendables, TComponent, BUFFER_SIIZE>
+impl<TComponent, const COMPONENT_ID: u64, const BUFFER_SIIZE: usize> Default
+    for BufferPlugin<TComponent, COMPONENT_ID, BUFFER_SIIZE>
 {
     fn default() -> Self {
-        Self(Default::default(), Default::default())
+        Self(Default::default())
     }
 }
 
 impl<
-    TSendables: Send
-        + Sync
-        + 'static
+    TComponent: Component<Mutability = Mutable>
+        + Serialize
+        + DeserializeOwned
         + Clone
-        + for<'a> From<&'a BufferObject<TComponent>>
-        + Into<Option<BufferObject<TComponent>>>,
-    TComponent: Sync + Send + Component<Mutability = Mutable> + Clone + Interpolate + PartialEq + 'static,
+        + PartialEq
+        + Interpolate,
+    const COMPONENT_ID: u64,
     const BUFFER_SIIZE: usize,
-> Plugin for BufferPlugin<TSendables, TComponent, BUFFER_SIIZE>
+> Plugin for BufferPlugin<TComponent, COMPONENT_ID, BUFFER_SIIZE>
 {
     fn build(&self, app: &mut App) {
-        app.add_plugins(HookupComponentPlugin::<TSendables, BufferObject<TComponent>>::default())
+        app.add_plugins(HookupComponentPlugin::<
+            BufferObject<TComponent>,
+            COMPONENT_ID,
+        >::default())
             .add_systems(
                 FixedUpdate,
                 (
@@ -62,8 +65,16 @@ impl<
     }
 }
 
-impl<TComponent: Component + Clone + Interpolate + PartialEq, TSendables, const BUFFER_SIIZE: usize>
-    BufferPlugin<TSendables, TComponent, BUFFER_SIIZE>
+impl<
+    TComponent: Component<Mutability = Mutable>
+        + Serialize
+        + DeserializeOwned
+        + Clone
+        + PartialEq
+        + Interpolate,
+    const COMPONENT_ID: u64,
+    const BUFFER_SIIZE: usize,
+> BufferPlugin<TComponent, COMPONENT_ID, BUFFER_SIIZE>
 {
     fn add_buffer_object(
         no_buffers: Query<(Entity, &TComponent), Without<BufferObject<TComponent>>>,

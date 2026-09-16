@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use bevy::{ecs::component::Mutable, prelude::*};
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     component_sharing::{
@@ -23,28 +23,24 @@ use crate::{
 };
 
 pub struct HookupComponentPlugin<
-    TComponent: Send + Sync + 'static + Component<Mutability = Mutable> + Serialize,
-    const TComponentId: u64,
-> {
-    _phantom_component: PhantomData<TComponent>,
-}
+    TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned,
+    const COMPONENT_ID: u64,
+>(PhantomData<TComponent>);
 
 impl<
-    TComponent: Send + Sync + 'static + Component<Mutability = Mutable> + Serialize,
-    const TComponentId: u64,
-> Default for HookupComponentPlugin<TComponent, TComponentId>
+    TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned,
+    const COMPONENT_ID: u64,
+> Default for HookupComponentPlugin<TComponent, COMPONENT_ID>
 {
     fn default() -> Self {
-        Self {
-            _phantom_component: Default::default(),
-        }
+        Self(Default::default())
     }
 }
 
 impl<
-    TComponent: 'static + Send + Sync + Component<Mutability = Mutable> + Serialize,
-    const TComponentId: u64,
-> Plugin for HookupComponentPlugin<TComponent, TComponentId>
+    TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned,
+    const COMPONENT_ID: u64,
+> Plugin for HookupComponentPlugin<TComponent, COMPONENT_ID>
 {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_systems(
@@ -68,9 +64,9 @@ impl<
 }
 
 impl<
-    TComponent: 'static + Send + Sync + Component<Mutability = Mutable> + Serialize,
-    const TComponentId: u64,
-> HookupComponentPlugin<TComponent, TComponentId>
+    TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned,
+    const COMPONENT_ID: u64,
+> HookupComponentPlugin<TComponent, COMPONENT_ID>
 {
     fn send_removed_owned(
         trigger: On<Remove, ShareComponent<TComponent>>,
@@ -80,12 +76,12 @@ impl<
             Option<&SyncEntityOwner>,
         )>,
         connections: Query<&mut Connection>,
-    ) {
+    ) -> Result {
         let Ok((removed_entity, removed_owner, removed_entity_owner)) =
             sync_entities.get(trigger.entity)
         else {
             warn!("Removed Owner not found!");
-            return;
+            return Ok(());
         };
 
         for mut session in connections {
@@ -104,8 +100,10 @@ impl<
                 continue;
             }
 
-            session.component_removed(removed_entity.sync_id, ComponentTypeId(TComponentId));
+            session.component_removed(removed_entity.sync_id, ComponentTypeId(COMPONENT_ID))?;
         }
+
+        Ok(())
     }
 
     pub fn send_owned(
@@ -116,7 +114,7 @@ impl<
             Option<Ref<SyncEntityOwner>>,
         )>,
         mut connections: Query<&mut Connection>,
-    ) {
+    ) -> Result {
         for (mut share_component, component, sync_entity, sync_owner) in owned_components {
             let component_changed = component.is_changed();
             let share_changed = share_component.is_changed();
@@ -153,22 +151,24 @@ impl<
                 if is_allowed && !is_on {
                     session.component_added(
                         sync_entity.sync_id,
-                        ComponentTypeId(TComponentId),
+                        ComponentTypeId(COMPONENT_ID),
                         component.into_inner(),
-                    );
+                    )?;
                     share_component
                         .on_sessions
                         .push(session.get_connection_id());
                 } else if is_allowed && is_on {
                     session.componend_updated(
                         sync_entity.sync_id,
-                        ComponentTypeId(TComponentId),
+                        ComponentTypeId(COMPONENT_ID),
                         component.into_inner(),
-                    );
+                    )?;
                 } else if is_on && !is_allowed {
                     if is_entity_allowed {
-                        session
-                            .component_removed(sync_entity.sync_id, ComponentTypeId(TComponentId));
+                        session.component_removed(
+                            sync_entity.sync_id,
+                            ComponentTypeId(COMPONENT_ID),
+                        )?;
                     }
                     share_component.on_sessions = share_component
                         .on_sessions
@@ -179,6 +179,8 @@ impl<
                 }
             }
         }
+
+        Ok(())
     }
 
     fn check_session_channels(
@@ -192,24 +194,20 @@ impl<
         mut commands: Commands,
     ) {
         for connection in connections {
-            for (action, entity_id, sended_component) in
-                connection.messages().filter_map(|ra| match ra {
-                    RemoteAction::Component {
-                        action,
-                        entity_id,
-                        component_data,
-                    } => {
-                        let Some(sended_component) =
-                            Into::<Option<TComponent>>::into(component_data.clone())
-                        else {
-                            return None;
-                        };
-
-                        Some((action, entity_id, sended_component))
+            for (action, entity_id) in connection.messages().filter_map(|ra| match ra {
+                RemoteAction::Component {
+                    action,
+                    entity_id,
+                    component_type_id,
+                } => {
+                    if component_type_id.0 != COMPONENT_ID {
+                        return None;
                     }
-                    _ => None,
-                })
-            {
+
+                    Some((action, entity_id))
+                }
+                _ => None,
+            }) {
                 let Some((_, entity, owner, data)) = sync_entites
                     .iter_mut()
                     .find(|(se, ..)| se.sync_id == *entity_id)
@@ -232,30 +230,31 @@ impl<
                 }
 
                 match action {
-                    ComponentAction::Add => {
-                        commands.entity(entity).insert(sended_component);
-                        commands.trigger(SessionAddedComponent::<TComponent> {
-                            entity,
-                            connection_id: connection.get_connection_id(),
-                            phantom: default(),
-                        });
-                    }
-                    ComponentAction::Update => {
-                        let Some(mut data) = data else {
-                            warn!("Component to update doesn't exist");
-                            continue;
-                        };
-
-                        *data = sended_component;
-                        commands.trigger(SessionUpdatedComponent::<TComponent> {
-                            entity,
-                            connection_id: connection.get_connection_id(),
-                            phantom: default(),
-                        });
-                    }
                     ComponentAction::Remove => {
                         commands.entity(entity).remove::<TComponent>();
                         commands.trigger(SessionRemovedComponent::<TComponent> {
+                            entity,
+                            connection_id: connection.get_connection_id(),
+                            phantom: default(),
+                        });
+                    }
+                    ComponentAction::AddOrUpdate { component_data_raw } => {
+                        let Some(component_data) = connection.get_data(component_data_raw) else {
+                            continue;
+                        };
+
+                        let Some(mut data) = data else {
+                            commands.entity(entity).insert(component_data);
+                            commands.trigger(SessionAddedComponent::<TComponent> {
+                                entity,
+                                connection_id: connection.get_connection_id(),
+                                phantom: default(),
+                            });
+                            continue;
+                        };
+
+                        *data = component_data;
+                        commands.trigger(SessionUpdatedComponent::<TComponent> {
                             entity,
                             connection_id: connection.get_connection_id(),
                             phantom: default(),

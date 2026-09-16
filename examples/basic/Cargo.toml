@@ -15,7 +15,6 @@ opt-level = 3
 bevy = "0.19.1"
 bevy-inspector-egui = "0.37.0"
 bevy_hookup_core = { path = "../../bevy_hookup_core" }
-bevy_hookup_macros = { path = "../../bevy_hookup_macros" }
 bevy_hookup_messenger_websocket = { path = "../../bevy_hookup_messenger_websocket" }
 serde = "1.0.229"
 tokio = "1.53.1"

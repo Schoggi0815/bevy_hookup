@@ -22,11 +22,9 @@ use bevy_hookup_messenger_websocket::{
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 use crate::{
-    all_sendables::Sendables, test_component::TestComponent, test_component_2::TestComponent2,
-    test_event::TestEvent,
+    test_component::TestComponent, test_component_2::TestComponent2, test_event::TestEvent,
 };
 
-mod all_sendables;
 mod test_component;
 mod test_component_2;
 mod test_event;
@@ -36,15 +34,15 @@ async fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            WebsocketClientPlugin::<Sendables>::default(),
-            WebsocketServerPlugin::<Sendables>::default(),
-            HookupSendablePlugin::<Sendables>::default(),
-            HookupComponentPlugin::<Sendables, TestComponent>::default(),
-            HookupComponentPlugin::<Sendables, TestComponent2>::default(),
-            HookupComponentPlugin::<Sendables, Name>::default(),
+            WebsocketClientPlugin,
+            WebsocketServerPlugin,
+            HookupSendablePlugin,
+            HookupComponentPlugin::<TestComponent, 0>::default(),
+            HookupComponentPlugin::<TestComponent2, 1>::default(),
+            HookupComponentPlugin::<Name, 2>::default(),
             ReshareComponentPlugin::<Name>::default(),
-            ReshareEntityPlugin::<Sendables>::default(),
-            HookupEventPlugin::<Sendables, TestEvent>::default(),
+            ReshareEntityPlugin,
+            HookupEventPlugin::<TestEvent, 0>::default(),
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
         ))
@@ -63,13 +61,13 @@ fn setup(mut commands: Commands) {
 
 fn spawn_ws_server(mut commands: Commands, input: Res<ButtonInput<KeyCode>>, _: NonSendMarker) {
     if input.just_pressed(KeyCode::F1) {
-        commands.spawn(WebsocketServer::<Sendables>::new_with_port(1526));
+        commands.spawn(WebsocketServer::new_with_port(1526));
     }
 }
 
 fn spawn_ws_client(mut commands: Commands, input: Res<ButtonInput<KeyCode>>, _: NonSendMarker) {
     if input.just_pressed(KeyCode::F2) {
-        commands.spawn(WebsocketClient::<Sendables>::new_with_host_and_port(
+        commands.spawn(WebsocketClient::new_with_host_and_port(
             "127.0.0.1".into(),
             1526,
         ));

@@ -18,7 +18,7 @@ pub enum RemoteAction {
     },
     SendEvent {
         event_type_id: EventTypeId,
-        event_data_string: String,
+        event_data_raw: Vec<u8>,
     },
 }
 
@@ -30,6 +30,6 @@ pub enum EntityAction {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ComponentAction {
-    AddOrUpdate { component_data_string: String },
+    AddOrUpdate { component_data_raw: Vec<u8> },
     Remove,
 }

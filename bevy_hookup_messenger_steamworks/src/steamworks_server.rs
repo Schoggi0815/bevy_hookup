@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 use bevy_hookup_core::connection::connection_messenger::ConnectionMessenger;
@@ -10,21 +7,17 @@ use bevy_steamworks::{
     networking_sockets::{InvalidHandle, ListenSocket},
     networking_types::ListenSocketEvent,
 };
-use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     steam_reference::SteamReference, steamworks_session_handler::SteamworksSessionHandler,
 };
 
 #[derive(Component)]
-pub struct SteamworksServer<TSendables> {
+pub struct SteamworksServer {
     socket: Arc<Mutex<ListenSocket>>,
-    phamtom: PhantomData<TSendables>,
 }
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + Sized>
-    SteamworksServer<TSendables>
-{
+impl SteamworksServer {
     pub fn new(client: &Client) -> Result<Self, InvalidHandle> {
         let socket = client
             .networking_sockets()
@@ -32,12 +25,11 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
 
         Ok(Self {
             socket: Arc::new(Mutex::new(socket)),
-            phamtom: Default::default(),
         })
     }
 
     pub fn handle_events(
-        servers: Query<&SteamworksServer<TSendables>>,
+        servers: Query<&SteamworksServer>,
         sessions: Query<(Entity, &SteamReference)>,
         mut commands: Commands,
     ) {
@@ -59,8 +51,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
                             .expect("SteamID not found");
                         let connection = connected_event.take_connection();
 
-                        let (handler, session) =
-                            SteamworksSessionHandler::<TSendables>::new_pair(connection);
+                        let (handler, session) = SteamworksSessionHandler::new_pair(connection);
 
                         commands.spawn((
                             SteamReference(steam_id),

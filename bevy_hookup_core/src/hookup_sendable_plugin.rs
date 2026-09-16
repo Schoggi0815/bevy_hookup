@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
 
 use crate::{
@@ -8,24 +6,14 @@ use crate::{
     origin::Origin,
 };
 
-pub struct HookupSendablePlugin<TSendables: Send + Sync + 'static + Clone> {
-    _phantom: PhantomData<TSendables>,
-}
+pub struct HookupSendablePlugin;
 
 #[derive(SystemSet, Debug, Hash, Clone, PartialEq, Eq)]
 pub struct ReadIncomingSystems;
 
-impl<TSendables: Send + Sync + 'static + Clone> Default for HookupSendablePlugin<TSendables> {
-    fn default() -> Self {
-        Self {
-            _phantom: Default::default(),
-        }
-    }
-}
-
-impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupSendablePlugin<TSendables> {
+impl Plugin for HookupSendablePlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.add_plugins(HookupEntityPlugin::<TSendables>::default())
+        app.add_plugins(HookupEntityPlugin)
             .add_systems(
                 FixedPostUpdate,
                 Self::read_incoming_messages.in_set(ReadIncomingSystems),
@@ -34,16 +22,16 @@ impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupSendablePlugin<
     }
 }
 
-impl<TSendables: Send + Sync + 'static + Clone> HookupSendablePlugin<TSendables> {
-    pub fn read_incoming_messages(connections: Query<&mut Connection<TSendables>>) {
+impl HookupSendablePlugin {
+    pub fn read_incoming_messages(connections: Query<&mut Connection>) {
         for mut connection in connections {
             connection.collect_messages();
         }
     }
 
     pub fn remove_session(
-        trigger: On<Remove, Connection<TSendables>>,
-        connections: Query<&Connection<TSendables>>,
+        trigger: On<Remove, Connection>,
+        connections: Query<&Connection>,
         from_sesions: Query<(Entity, &Origin<ConnectionId>)>,
         mut commands: Commands,
     ) {

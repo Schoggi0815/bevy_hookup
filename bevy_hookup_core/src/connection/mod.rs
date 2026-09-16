@@ -5,9 +5,10 @@ use crate::event_sharing::event_type_id::EventTypeId;
 use crate::{
     connection::connection_id::ConnectionId, entity_sharing::sync_entity_id::SyncEntityId,
 };
+use bevy::ecs::error::Result;
 use bevy::log::warn;
 use bevy::prelude::Component;
-use crossbeam::channel::{Receiver, Sender};
+use crossbeam::channel::Receiver;
 use erased_serde::Serialize;
 use itertools::Itertools;
 use serde::de::DeserializeOwned;
@@ -20,19 +21,16 @@ pub mod remote_action;
 pub struct Connection {
     messenger: Box<dyn ConnectionMessenger + Send + Sync>,
     current_messanges: Vec<RemoteAction>,
-    pub(super) outgoing: Sender<RemoteAction>,
     pub(super) incoming: Receiver<RemoteAction>,
 }
 
 impl Connection {
     pub fn new(
-        messenger: Box<dyn ConnectionMessenger + Send + Sync>,
-        outgoing: Sender<RemoteAction>,
         incoming: Receiver<RemoteAction>,
+        messenger: Box<dyn ConnectionMessenger + Send + Sync>,
     ) -> Self {
         Self {
             messenger,
-            outgoing,
             incoming,
             current_messanges: Vec::new(),
         }
@@ -42,27 +40,30 @@ impl Connection {
         self.messenger.get_connection_id()
     }
 
-    pub fn entity_added(&mut self, sync_id: SyncEntityId) {
-        self.outgoing.send(RemoteAction::Entity {
+    pub fn entity_added(&mut self, sync_id: SyncEntityId) -> Result {
+        self.messenger.send_action(RemoteAction::Entity {
             action: EntityAction::Add,
             id: sync_id,
-        });
+        })?;
+        Ok(())
     }
 
-    pub fn entity_removed(&mut self, sync_id: SyncEntityId) {
-        self.outgoing.send(RemoteAction::Entity {
+    pub fn entity_removed(&mut self, sync_id: SyncEntityId) -> Result {
+        self.messenger.send_action(RemoteAction::Entity {
             action: EntityAction::Remove,
             id: sync_id,
-        });
+        })?;
+        Ok(())
     }
 
-    fn serialize<T: 'static + Serialize>(&mut self, data: &T) -> Option<String> {
-        let Ok(component_data_string) = self.messenger.serialize(Box::new(data)) else {
-            warn!("Could not serialize data");
-            return None;
-        };
-
-        Some(component_data_string)
+    fn serialize<T: 'static + Serialize>(&mut self, data: &T) -> Option<Vec<u8>> {
+        match self.messenger.serialize(Box::new(data)) {
+            Ok(data_raw) => Some(data_raw),
+            Err(error) => {
+                warn!("Could not serialize data, error: [{}]", error);
+                None
+            }
+        }
     }
 
     pub fn component_added<T: 'static + Serialize>(
@@ -70,18 +71,18 @@ impl Connection {
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
         component_data: &T,
-    ) {
-        let Some(component_data_string) = self.serialize(component_data) else {
-            return;
+    ) -> Result {
+        let Some(component_data_raw) = self.serialize(component_data) else {
+            return Ok(());
         };
+        let component_data_raw = component_data_raw.to_vec();
 
-        self.outgoing.send(RemoteAction::Component {
-            action: ComponentAction::AddOrUpdate {
-                component_data_string,
-            },
+        self.messenger.send_action(RemoteAction::Component {
+            action: ComponentAction::AddOrUpdate { component_data_raw },
             component_type_id,
             entity_id,
-        });
+        })?;
+        Ok(())
     }
 
     pub fn componend_updated<T: 'static + Serialize>(
@@ -89,55 +90,65 @@ impl Connection {
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
         component_data: &T,
-    ) {
-        let Some(component_data_string) = self.serialize(component_data) else {
-            return;
+    ) -> Result {
+        let Some(component_data_raw) = self.serialize(component_data) else {
+            return Ok(());
         };
+        let component_data_raw = component_data_raw.to_vec();
 
-        self.outgoing.send(RemoteAction::Component {
-            action: ComponentAction::AddOrUpdate {
-                component_data_string,
-            },
+        self.messenger.send_action(RemoteAction::Component {
+            action: ComponentAction::AddOrUpdate { component_data_raw },
             component_type_id,
             entity_id,
-        });
+        })?;
+        Ok(())
     }
 
     pub fn component_removed(
         &mut self,
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
-    ) {
-        self.outgoing.send(RemoteAction::Component {
+    ) -> Result {
+        self.messenger.send_action(RemoteAction::Component {
             action: ComponentAction::Remove,
             component_type_id,
             entity_id,
-        });
+        })?;
+        Ok(())
     }
 
     pub fn send_event<T: 'static + Serialize>(
         &mut self,
         event_type_id: EventTypeId,
         event_data: &T,
-    ) {
-        let Some(event_data_string) = self.serialize(event_data) else {
-            return;
+    ) -> Result {
+        let Some(event_data_raw) = self.serialize(event_data) else {
+            return Ok(());
         };
+        let event_data_raw = event_data_raw.to_vec();
 
-        self.outgoing.send(RemoteAction::SendEvent {
+        self.messenger.send_action(RemoteAction::SendEvent {
             event_type_id,
-            event_data_string,
-        });
+            event_data_raw,
+        })?;
+        Ok(())
     }
 
     pub fn messages(&self) -> impl Iterator<Item = &RemoteAction> {
         self.current_messanges.iter()
     }
 
-    pub fn get_data<T: DeserializeOwned>(&self, string: String) -> Option<T> {
-        let deserializer = self.messenger.get_deserializer(string);
+    pub fn get_data<T: DeserializeOwned>(&self, raw: &[u8]) -> Option<T> {
+        let mut result: Option<T> = None;
 
-        erased_serde::deserialize(deserializer).ok()
+        self.messenger
+            .with_deserializer(raw, &mut |deserializer| {
+                result = Some(erased_serde::deserialize::<T>(deserializer)?);
+                Ok(())
+            })
+            .ok()?;
+
+        result
     }
 
     pub fn collect_messages(&mut self) {

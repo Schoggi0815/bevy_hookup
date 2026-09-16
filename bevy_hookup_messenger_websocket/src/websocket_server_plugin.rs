@@ -1,30 +1,11 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
 use bevy_hookup_core::connection::Connection;
-use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{session_message::SessionMessage, websocket_server::WebsocketServer};
 
-pub struct WebsocketServerPlugin<
-    TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone,
-> {
-    _phantom_sendable: PhantomData<TSendables>,
-}
+pub struct WebsocketServerPlugin;
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> Default
-    for WebsocketServerPlugin<TSendables>
-{
-    fn default() -> Self {
-        Self {
-            _phantom_sendable: Default::default(),
-        }
-    }
-}
-
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> Plugin
-    for WebsocketServerPlugin<TSendables>
-{
+impl Plugin for WebsocketServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
@@ -33,12 +14,10 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> P
     }
 }
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
-    WebsocketServerPlugin<TSendables>
-{
+impl WebsocketServerPlugin {
     fn manage_server_sessions(
-        websocket_servers: Query<&WebsocketServer<TSendables>>,
-        sessions: Query<(Entity, &Connection<TSendables>)>,
+        websocket_servers: Query<&WebsocketServer>,
+        sessions: Query<(Entity, &Connection)>,
         mut commands: Commands,
     ) {
         for session in websocket_servers
@@ -62,7 +41,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     }
 
     fn handle_server_states(
-        websocket_servers: Query<(Entity, &WebsocketServer<TSendables>)>,
+        websocket_servers: Query<(Entity, &WebsocketServer)>,
         mut commands: Commands,
     ) {
         for (entity, server) in websocket_servers {

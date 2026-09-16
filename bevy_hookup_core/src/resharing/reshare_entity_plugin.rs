@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-use std::marker::PhantomData;
-
 use crate::{
     connection::connection_id::ConnectionId,
     entity_sharing::{
@@ -13,27 +11,15 @@ use crate::{
     resharing::reshare_entity_component::ReshareEntityComponent,
 };
 
-pub struct ReshareEntityPlugin<TSendables>(PhantomData<TSendables>);
+pub struct ReshareEntityPlugin;
 
-impl<TS> Default for ReshareEntityPlugin<TS> {
-    fn default() -> Self {
-        Self(PhantomData::default())
-    }
-}
-
-impl<TS> Plugin for ReshareEntityPlugin<TS>
-where
-    TS: Send + Sync + 'static,
-{
+impl Plugin for ReshareEntityPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            Self::reshare_entity.after(ReceiveEntitySystems::<TS>::default()),
-        );
+        app.add_systems(Update, Self::reshare_entity.after(ReceiveEntitySystems));
     }
 }
 
-impl<TS> ReshareEntityPlugin<TS> {
+impl ReshareEntityPlugin {
     fn reshare_entity(
         missing_owners: Query<
             (Entity, &Origin<ConnectionId>),
@@ -44,9 +30,7 @@ impl<TS> ReshareEntityPlugin<TS> {
             ),
         >,
         mut commands: Commands,
-    ) where
-        TS: Send + Sync + 'static,
-    {
+    ) {
         for (entity, from_session) in missing_owners {
             commands.entity(entity).insert(
                 SyncEntityOwner::new()

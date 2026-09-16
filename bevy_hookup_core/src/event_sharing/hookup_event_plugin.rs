@@ -1,37 +1,31 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
+use erased_serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::{
     connection::{Connection, remote_action::RemoteAction},
-    event_sharing::{received_event::ReceivedEvent, send_event::SendEvent},
+    event_sharing::{
+        event_type_id::EventTypeId, received_event::ReceivedEvent, send_event::SendEvent,
+    },
 };
 
 pub struct HookupEventPlugin<
-    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TEvent> + Into<Option<TEvent>>,
-    TEvent: Send + Sync + 'static,
-> {
-    _phantom: PhantomData<TSendables>,
-    _phantom_component: PhantomData<TEvent>,
-}
+    TEvent: Send + Sync + 'static + Serialize + DeserializeOwned,
+    const EVENT_ID: u64,
+>(PhantomData<TEvent>);
 
-impl<
-    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TEvent> + Into<Option<TEvent>>,
-    TEvent: Send + Sync + 'static,
-> Default for HookupEventPlugin<TSendables, TEvent>
+impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_ID: u64> Default
+    for HookupEventPlugin<TEvent, EVENT_ID>
 {
     fn default() -> Self {
-        Self {
-            _phantom: Default::default(),
-            _phantom_component: Default::default(),
-        }
+        Self(Default::default())
     }
 }
 
-impl<
-    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TEvent> + Into<Option<TEvent>>,
-    TEvent: Send + Sync + 'static,
-> Plugin for HookupEventPlugin<TSendables, TEvent>
+impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_ID: u64> Plugin
+    for HookupEventPlugin<TEvent, EVENT_ID>
 {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, Self::check_session_channels)
@@ -39,43 +33,37 @@ impl<
     }
 }
 
-impl<
-    TSendables: Send + Sync + 'static + Clone + for<'a> From<&'a TEvent> + Into<Option<TEvent>>,
-    TEvent: Send + Sync + 'static,
-> HookupEventPlugin<TSendables, TEvent>
+impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_ID: u64>
+    HookupEventPlugin<TEvent, EVENT_ID>
 {
-    fn send_events(event: On<SendEvent<TEvent>>, connections: Query<&mut Connection<TSendables>>) {
+    fn send_events(event: On<SendEvent<TEvent>>, connections: Query<&mut Connection>) -> Result {
         for mut connection in connections {
-            connection.send_event((&event.event().event).into());
+            connection.send_event(EventTypeId(EVENT_ID), &event.event().event)?;
         }
+
+        Ok(())
     }
 
-    fn check_session_channels(
-        connections: Query<&mut Connection<TSendables>>,
-        mut commands: Commands,
-    ) {
+    fn check_session_channels(connections: Query<&mut Connection>, mut commands: Commands) {
         for connection in connections {
-            let mut unused_actions = Vec::new();
-            for session_action in connection.channels.receiver.try_iter() {
-                match session_action {
-                    RemoteAction::SendEvent { ref event_data } => {
-                        let Some(event_data) = Into::<Option<TEvent>>::into(event_data.clone())
-                        else {
-                            unused_actions.push(session_action);
-                            continue;
-                        };
-
-                        commands.trigger(ReceivedEvent {
-                            event: event_data,
-                            from_connection: connection.get_connection_id(),
-                        });
+            for event_data in connection.messages().filter_map(|message| match message {
+                RemoteAction::SendEvent {
+                    event_type_id,
+                    event_data_raw,
+                } => {
+                    if event_type_id.0 != EVENT_ID {
+                        return None;
                     }
-                    _ => unused_actions.push(session_action),
+
+                    connection.get_data::<TEvent>(event_data_raw)
                 }
+                _ => None,
+            }) {
+                commands.trigger(ReceivedEvent {
+                    event: event_data,
+                    from_connection: connection.get_connection_id(),
+                });
             }
-            unused_actions
-                .into_iter()
-                .for_each(|sa| connection.channels.sender.try_send(sa).expect("Unbounded"));
         }
     }
 }

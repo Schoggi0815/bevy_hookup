@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
 
 use crate::{
@@ -16,48 +14,33 @@ use crate::{
     origin::Origin,
 };
 
-pub struct HookupEntityPlugin<TSendables: Send + Sync + 'static + Clone> {
-    _phantom_sendable: PhantomData<TSendables>,
-}
+pub struct HookupEntityPlugin;
 
-impl<TSendables: Send + Sync + 'static + Clone> Default for HookupEntityPlugin<TSendables> {
-    fn default() -> Self {
-        Self {
-            _phantom_sendable: Default::default(),
-        }
-    }
-}
-
-impl<TSendables: Send + Sync + 'static + Clone> Plugin for HookupEntityPlugin<TSendables> {
+impl Plugin for HookupEntityPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.register_type::<SyncEntity>()
             .register_type::<SyncEntityOwner>()
             .add_systems(
                 FixedUpdate,
-                (send_entites::<TSendables>, init_session::<TSendables>)
-                    .in_set(SendEntitySystems::<TSendables>::default()),
+                (send_entites, init_session).in_set(SendEntitySystems),
             )
             .add_systems(
                 FixedUpdate,
-                check_entity_channel::<TSendables>
-                    .in_set(ReceiveEntitySystems::<TSendables>::default()),
+                check_entity_channel.in_set(ReceiveEntitySystems),
             )
-            .add_observer(send_removed_entites::<TSendables>)
-            .configure_sets(
-                FixedUpdate,
-                ReceiveEntitySystems::<TSendables>::default().after(ReadIncomingSystems),
-            );
+            .add_observer(send_removed_entites)
+            .configure_sets(FixedUpdate, ReceiveEntitySystems.after(ReadIncomingSystems));
     }
 }
 
-fn send_removed_entites<TSendables: Send + Sync + 'static + Clone>(
+fn send_removed_entites(
     trigger: On<Remove, SyncEntityOwner>,
     sync_entities: Query<(&SyncEntity, &SyncEntityOwner)>,
-    connections: Query<&mut Connection<TSendables>>,
-) {
+    connections: Query<&mut Connection>,
+) -> Result {
     let Ok((removed_entity, removed_owner)) = sync_entities.get(trigger.entity) else {
         warn!("Couldn't find removed sync entity.");
-        return;
+        return Ok(());
     };
 
     for mut connection in connections {
@@ -68,21 +51,23 @@ fn send_removed_entites<TSendables: Send + Sync + 'static + Clone>(
             continue;
         }
 
-        connection.entity_removed(removed_entity.sync_id);
+        connection.entity_removed(removed_entity.sync_id)?;
     }
+
+    Ok(())
 }
 
-fn send_entites<TSendables: Send + Sync + 'static + Clone>(
-    mut connections: Query<&mut Connection<TSendables>>,
+fn send_entites(
+    mut connections: Query<&mut Connection>,
     sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
-) {
+) -> Result {
     for (mut owner, sync) in sync_entities {
         for mut session in connections.iter_mut() {
             let session_id = session.get_connection_id();
             let in_session = owner.on_sessions.contains(&session_id);
             let allowed_in_session = owner.session_read_filter.is_allowed(&session_id);
             if in_session && !allowed_in_session {
-                session.entity_removed(sync.sync_id);
+                session.entity_removed(sync.sync_id)?;
                 owner.on_sessions = owner
                     .on_sessions
                     .clone()
@@ -90,17 +75,19 @@ fn send_entites<TSendables: Send + Sync + 'static + Clone>(
                     .filter(|sid| *sid != session_id)
                     .collect();
             } else if !in_session && allowed_in_session {
-                session.entity_added(sync.sync_id);
+                session.entity_added(sync.sync_id)?;
                 owner.on_sessions.push(session_id);
             }
         }
     }
+
+    Ok(())
 }
 
-fn init_session<TSendables: Send + Sync + 'static + Clone>(
-    connections: Query<&mut Connection<TSendables>, Added<Connection<TSendables>>>,
+fn init_session(
+    connections: Query<&mut Connection, Added<Connection>>,
     mut sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity)>,
-) {
+) -> Result {
     for mut connection in connections {
         for (mut owner, sync) in sync_entities.iter_mut() {
             if !owner
@@ -110,14 +97,16 @@ fn init_session<TSendables: Send + Sync + 'static + Clone>(
                 continue;
             }
 
-            connection.entity_added(sync.sync_id);
+            connection.entity_added(sync.sync_id)?;
             owner.on_sessions.push(connection.get_connection_id());
         }
     }
+
+    Ok(())
 }
 
-fn check_entity_channel<TSendables: Send + Sync + 'static + Clone>(
-    connections: Query<&Connection<TSendables>>,
+fn check_entity_channel(
+    connections: Query<&Connection>,
     mut commands: Commands,
     sync_entities: Query<(Entity, &SyncEntity)>,
 ) {
