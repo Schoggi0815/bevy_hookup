@@ -4,8 +4,9 @@ use bevy::prelude::*;
 
 use crate::{connection::connection_id::ConnectionId, filter::Filter};
 
-#[derive(Component, Clone)]
+#[derive(Component, Reflect, Clone)]
 pub struct ShareComponent<TComponent> {
+    #[reflect(ignore)]
     phantom: PhantomData<TComponent>,
     pub on_sessions: Vec<ConnectionId>,
     pub read_filter: Filter<ConnectionId>,

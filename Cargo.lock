@@ -1066,15 +1066,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_hookup_macros"
-version = "2.0.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "bevy_hookup_messenger_steamworks"
 version = "1.4.0"
 dependencies = [

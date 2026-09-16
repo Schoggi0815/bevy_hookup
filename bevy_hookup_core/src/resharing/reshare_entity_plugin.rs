@@ -3,11 +3,11 @@ use bevy::prelude::*;
 use crate::{
     connection::connection_id::ConnectionId,
     entity_sharing::{
+        entity_origin::EntityOrigin,
         receive_entity_systems::ReceiveEntitySystems,
         sync_entity::{SyncEntity, SyncEntityOwner},
     },
     filter::Filter,
-    origin::Origin,
     resharing::reshare_entity_component::ReshareEntityComponent,
 };
 
@@ -22,7 +22,7 @@ impl Plugin for ReshareEntityPlugin {
 impl ReshareEntityPlugin {
     fn reshare_entity(
         missing_owners: Query<
-            (Entity, &Origin<ConnectionId>),
+            (Entity, &EntityOrigin<ConnectionId>),
             (
                 With<ReshareEntityComponent>,
                 With<SyncEntity>,

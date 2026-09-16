@@ -1,25 +1,27 @@
 use bevy::prelude::*;
 
 use crate::{
+    client_id::ClientId,
     connection::{
         Connection,
+        connection_id::ConnectionId,
         remote_action::{EntityAction, RemoteAction},
     },
     entity_sharing::{
+        entity_origin::EntityOrigin,
         receive_entity_systems::ReceiveEntitySystems,
         send_entity_systems::SendEntitySystems,
         sync_entity::{SyncEntity, SyncEntityOwner},
     },
     hookup_sendable_plugin::ReadIncomingSystems,
-    origin::Origin,
 };
 
 pub struct HookupEntityPlugin;
 
 impl Plugin for HookupEntityPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.register_type::<SyncEntity>()
-            .register_type::<SyncEntityOwner>()
+        app.register_type::<EntityOrigin<ConnectionId>>()
+            .register_type::<EntityOrigin<ClientId>>()
             .add_systems(
                 FixedUpdate,
                 (send_entites, init_session).in_set(SendEntitySystems),
@@ -129,7 +131,7 @@ fn check_entity_channel(
 
                     commands.spawn((
                         SyncEntity::new_from_id(*id),
-                        Origin(connection.get_connection_id()),
+                        EntityOrigin(connection.get_connection_id()),
                     ));
                 }
                 EntityAction::Remove => {

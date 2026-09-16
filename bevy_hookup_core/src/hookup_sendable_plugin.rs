@@ -2,8 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     connection::{Connection, connection_id::ConnectionId},
-    entity_sharing::hookup_entity_plugin::HookupEntityPlugin,
-    origin::Origin,
+    entity_sharing::{entity_origin::EntityOrigin, hookup_entity_plugin::HookupEntityPlugin},
 };
 
 pub struct HookupSendablePlugin;
@@ -32,7 +31,7 @@ impl HookupSendablePlugin {
     pub fn remove_session(
         trigger: On<Remove, Connection>,
         connections: Query<&Connection>,
-        from_sesions: Query<(Entity, &Origin<ConnectionId>)>,
+        from_sesions: Query<(Entity, &EntityOrigin<ConnectionId>)>,
         mut commands: Commands,
     ) {
         let Ok(removed_connection) = connections.get(trigger.entity) else {

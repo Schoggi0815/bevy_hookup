@@ -1,7 +1,7 @@
 use bevy::{ecs::system::NonSendMarker, prelude::*};
 use bevy_hookup_core::{
     component_sharing::{
-        hookup_component_plugin::HookupComponentPlugin, share_component::ShareComponent,
+        hookup_component_plugin::HookupReflectComponentPlugin, share_component::ShareComponent,
     },
     entity_sharing::sync_entity::SyncEntityOwner,
     event_sharing::{
@@ -10,10 +10,6 @@ use bevy_hookup_core::{
     },
     filter::Filter,
     hookup_sendable_plugin::HookupSendablePlugin,
-    resharing::{
-        reshare_component_plugin::ReshareComponentPlugin,
-        reshare_entity_plugin::ReshareEntityPlugin,
-    },
 };
 use bevy_hookup_messenger_websocket::{
     websocket_client::WebsocketClient, websocket_client_plugin::WebsocketClientPlugin,
@@ -37,11 +33,9 @@ async fn main() {
             WebsocketClientPlugin,
             WebsocketServerPlugin,
             HookupSendablePlugin,
-            HookupComponentPlugin::<TestComponent, 0>::default(),
-            HookupComponentPlugin::<TestComponent2, 1>::default(),
-            HookupComponentPlugin::<Name, 2>::default(),
-            ReshareComponentPlugin::<Name>::default(),
-            ReshareEntityPlugin,
+            HookupReflectComponentPlugin::<TestComponent, 0>::default(),
+            HookupReflectComponentPlugin::<TestComponent2, 1>::default(),
+            HookupReflectComponentPlugin::<Name, 2>::default(),
             HookupEventPlugin::<TestEvent, 0>::default(),
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),

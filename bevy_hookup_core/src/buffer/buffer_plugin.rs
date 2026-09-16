@@ -9,12 +9,11 @@ use crate::{
         component_buffer::ComponentBuffer, interpolate::Interpolate,
     },
     component_sharing::{
-        hookup_component_plugin::HookupComponentPlugin,
+        component_origin::ComponentOrigin, hookup_component_plugin::HookupComponentPlugin,
         receive_component_systems::ReceiveComponentSystems,
         send_component_systems::SendComponentSystems,
     },
     connection::connection_id::ConnectionId,
-    origin::Origin,
 };
 
 pub struct BufferPlugin<TComponent, const COMPONENT_ID: u64, const BUFFER_SIIZE: usize>(
@@ -106,7 +105,7 @@ impl<
             (Entity, &BufferObject<TComponent>),
             (
                 Without<ComponentBuffer<TComponent, BUFFER_SIIZE>>,
-                With<Origin<ConnectionId>>,
+                With<ComponentOrigin<TComponent, ConnectionId>>,
             ),
         >,
         mut commands: Commands,

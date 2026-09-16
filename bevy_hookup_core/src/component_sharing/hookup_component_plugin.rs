@@ -4,12 +4,15 @@ use bevy::{ecs::component::Mutable, prelude::*};
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
+    client_id::ClientId,
     component_sharing::{
-        component_type_id::ComponentTypeId, receive_component_systems::ReceiveComponentSystems,
+        component_origin::ComponentOrigin, component_type_id::ComponentTypeId,
+        receive_component_systems::ReceiveComponentSystems,
         send_component_systems::SendComponentSystems, share_component::ShareComponent,
     },
     connection::{
         Connection,
+        connection_id::ConnectionId,
         remote_action::{ComponentAction, RemoteAction},
     },
     entity_sharing::{
@@ -21,6 +24,56 @@ use crate::{
         SessionAddedComponent, SessionRemovedComponent, SessionUpdatedComponent,
     },
 };
+
+pub struct HookupReflectComponentPlugin<
+    TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned + TypePath + Reflect,
+    const COMPONENT_ID: u64,
+>(PhantomData<TComponent>);
+
+impl<
+    TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned + TypePath + Reflect,
+    const COMPONENT_ID: u64,
+> Default for HookupReflectComponentPlugin<TComponent, COMPONENT_ID>
+{
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<
+    TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned + TypePath + Reflect,
+    const COMPONENT_ID: u64,
+> Plugin for HookupReflectComponentPlugin<TComponent, COMPONENT_ID>
+{
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            HookupComponentPlugin::<TComponent, COMPONENT_ID>::default(),
+            HookupComponentTypePlugin::<TComponent>::default(),
+        ));
+    }
+}
+
+pub struct HookupComponentTypePlugin<
+    TComponent: Component<Mutability = Mutable> + TypePath + Reflect,
+>(PhantomData<TComponent>);
+
+impl<TComponent: Component<Mutability = Mutable> + TypePath + Reflect> Default
+    for HookupComponentTypePlugin<TComponent>
+{
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<TComponent: Component<Mutability = Mutable> + TypePath + Reflect> Plugin
+    for HookupComponentTypePlugin<TComponent>
+{
+    fn build(&self, app: &mut App) {
+        app.register_type::<ComponentOrigin<TComponent, ConnectionId>>()
+            .register_type::<ComponentOrigin<TComponent, ClientId>>()
+            .register_type::<ShareComponent<TComponent>>();
+    }
+}
 
 pub struct HookupComponentPlugin<
     TComponent: Component<Mutability = Mutable> + Serialize + DeserializeOwned,
@@ -231,7 +284,11 @@ impl<
 
                 match action {
                     ComponentAction::Remove => {
-                        commands.entity(entity).remove::<TComponent>();
+                        commands
+                            .entity(entity)
+                            .remove::<TComponent>()
+                            .remove::<ComponentOrigin<TComponent, ConnectionId>>()
+                            .remove::<ComponentOrigin<TComponent, ClientId>>();
                         commands.trigger(SessionRemovedComponent::<TComponent> {
                             entity,
                             connection_id: connection.get_connection_id(),
@@ -244,7 +301,11 @@ impl<
                         };
 
                         let Some(mut data) = data else {
-                            commands.entity(entity).insert(component_data);
+                            commands.entity(entity).insert(component_data).insert(
+                                ComponentOrigin::<TComponent, _>::new(
+                                    connection.get_connection_id(),
+                                ),
+                            );
                             commands.trigger(SessionAddedComponent::<TComponent> {
                                 entity,
                                 connection_id: connection.get_connection_id(),
