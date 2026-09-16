@@ -9,7 +9,7 @@ use bevy_hookup_core::{
         send_event::SendEvent,
     },
     filter::Filter,
-    hookup_sendable_plugin::HookupSendablePlugin,
+    hookup_core_plugin::HookupCorePlugin,
 };
 use bevy_hookup_messenger_websocket::{
     websocket_client::WebsocketClient, websocket_client_plugin::WebsocketClientPlugin,
@@ -32,7 +32,7 @@ async fn main() {
             DefaultPlugins,
             WebsocketClientPlugin,
             WebsocketServerPlugin,
-            HookupSendablePlugin,
+            HookupCorePlugin,
             HookupReflectComponentPlugin::<TestComponent, 0>::default(),
             HookupReflectComponentPlugin::<TestComponent2, 1>::default(),
             HookupReflectComponentPlugin::<Name, 2>::default(),

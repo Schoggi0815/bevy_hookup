@@ -5,6 +5,7 @@ use erased_serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::{
+    client_id::ClientId,
     connection::{Connection, remote_action::RemoteAction},
     event_sharing::{
         event_type_id::EventTypeId, received_event::ReceivedEvent, send_event::SendEvent,
@@ -36,9 +37,13 @@ impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_I
 impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_ID: u64>
     HookupEventPlugin<TEvent, EVENT_ID>
 {
-    fn send_events(event: On<SendEvent<TEvent>>, connections: Query<&mut Connection>) -> Result {
+    fn send_events(
+        event: On<SendEvent<TEvent>>,
+        connections: Query<&mut Connection>,
+        client_id: Res<ClientId>,
+    ) -> Result {
         for mut connection in connections {
-            connection.send_event(EventTypeId(EVENT_ID), &event.event().event)?;
+            connection.send_event(EventTypeId(EVENT_ID), &event.event().event, *client_id)?;
         }
 
         Ok(())
@@ -46,22 +51,27 @@ impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_I
 
     fn check_session_channels(connections: Query<&mut Connection>, mut commands: Commands) {
         for connection in connections {
-            for event_data in connection.messages().filter_map(|message| match message {
+            for (event_data, client_id) in connection.messages().filter_map(|message| match message
+            {
                 RemoteAction::SendEvent {
                     event_type_id,
                     event_data_raw,
+                    client_id,
                 } => {
                     if event_type_id.0 != EVENT_ID {
                         return None;
                     }
 
-                    connection.get_data::<TEvent>(event_data_raw)
+                    connection
+                        .get_data::<TEvent>(event_data_raw)
+                        .map(|e| (e, *client_id))
                 }
                 _ => None,
             }) {
                 commands.trigger(ReceivedEvent {
                     event: event_data,
                     from_connection: connection.get_connection_id(),
+                    from_client: client_id,
                 });
             }
         }

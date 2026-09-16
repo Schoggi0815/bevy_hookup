@@ -5,5 +5,5 @@ pub mod connection;
 pub mod entity_sharing;
 pub mod event_sharing;
 pub mod filter;
-pub mod hookup_sendable_plugin;
+pub mod hookup_core_plugin;
 pub mod resharing;

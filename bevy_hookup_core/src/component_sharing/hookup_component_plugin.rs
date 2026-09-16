@@ -127,15 +127,19 @@ impl<
             &SyncEntity,
             &ShareComponent<TComponent>,
             Option<&SyncEntityOwner>,
+            Option<&ComponentOrigin<TComponent, ClientId>>,
         )>,
         connections: Query<&mut Connection>,
+        client_id: Res<ClientId>,
     ) -> Result {
-        let Ok((removed_entity, removed_owner, removed_entity_owner)) =
+        let Ok((removed_entity, removed_owner, removed_entity_owner, origin_client)) =
             sync_entities.get(trigger.entity)
         else {
             warn!("Removed Owner not found!");
             return Ok(());
         };
+
+        let origin = origin_client.map_or(*client_id, |oc| oc.0);
 
         for mut session in connections {
             if let Some(removed_entity_owner) = removed_entity_owner
@@ -153,7 +157,11 @@ impl<
                 continue;
             }
 
-            session.component_removed(removed_entity.sync_id, ComponentTypeId(COMPONENT_ID))?;
+            session.component_removed(
+                removed_entity.sync_id,
+                ComponentTypeId(COMPONENT_ID),
+                origin,
+            )?;
         }
 
         Ok(())
@@ -165,10 +173,14 @@ impl<
             Ref<TComponent>,
             &SyncEntity,
             Option<Ref<SyncEntityOwner>>,
+            Option<&ComponentOrigin<TComponent, ClientId>>,
         )>,
         mut connections: Query<&mut Connection>,
+        client_id: Res<ClientId>,
     ) -> Result {
-        for (mut share_component, component, sync_entity, sync_owner) in owned_components {
+        for (mut share_component, component, sync_entity, sync_owner, origin_client) in
+            owned_components
+        {
             let component_changed = component.is_changed();
             let share_changed = share_component.is_changed();
             let sync_owner_changed = if let Some(ref sync_owner) = sync_owner {
@@ -182,6 +194,8 @@ impl<
             }
 
             let session_filter = share_component.read_filter.clone();
+
+            let origin = origin_client.map_or(*client_id, |oc| oc.0);
 
             for mut session in connections.iter_mut() {
                 let is_component_allowed = session_filter.is_allowed(&session.get_connection_id());
@@ -206,6 +220,7 @@ impl<
                         sync_entity.sync_id,
                         ComponentTypeId(COMPONENT_ID),
                         component.into_inner(),
+                        origin,
                     )?;
                     share_component
                         .on_sessions
@@ -215,12 +230,14 @@ impl<
                         sync_entity.sync_id,
                         ComponentTypeId(COMPONENT_ID),
                         component.into_inner(),
+                        origin,
                     )?;
                 } else if is_on && !is_allowed {
                     if is_entity_allowed {
                         session.component_removed(
                             sync_entity.sync_id,
                             ComponentTypeId(COMPONENT_ID),
+                            origin,
                         )?;
                     }
                     share_component.on_sessions = share_component
@@ -247,17 +264,18 @@ impl<
         mut commands: Commands,
     ) {
         for connection in connections {
-            for (action, entity_id) in connection.messages().filter_map(|ra| match ra {
+            for (action, entity_id, client_id) in connection.messages().filter_map(|ra| match ra {
                 RemoteAction::Component {
                     action,
                     entity_id,
                     component_type_id,
+                    client_id,
                 } => {
                     if component_type_id.0 != COMPONENT_ID {
                         return None;
                     }
 
-                    Some((action, entity_id))
+                    Some((action, entity_id, *client_id))
                 }
                 _ => None,
             }) {
@@ -301,11 +319,13 @@ impl<
                         };
 
                         let Some(mut data) = data else {
-                            commands.entity(entity).insert(component_data).insert(
+                            commands.entity(entity).insert((
+                                component_data,
                                 ComponentOrigin::<TComponent, _>::new(
                                     connection.get_connection_id(),
                                 ),
-                            );
+                                ComponentOrigin::<TComponent, _>::new(client_id),
+                            ));
                             commands.trigger(SessionAddedComponent::<TComponent> {
                                 entity,
                                 connection_id: connection.get_connection_id(),

@@ -1,18 +1,20 @@
 use bevy::prelude::*;
 
 use crate::{
+    client_id::ClientId,
     connection::{Connection, connection_id::ConnectionId},
     entity_sharing::{entity_origin::EntityOrigin, hookup_entity_plugin::HookupEntityPlugin},
 };
 
-pub struct HookupSendablePlugin;
+pub struct HookupCorePlugin;
 
 #[derive(SystemSet, Debug, Hash, Clone, PartialEq, Eq)]
 pub struct ReadIncomingSystems;
 
-impl Plugin for HookupSendablePlugin {
+impl Plugin for HookupCorePlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.add_plugins(HookupEntityPlugin)
+        app.insert_resource(ClientId::default())
+            .add_plugins(HookupEntityPlugin)
             .add_systems(
                 FixedPostUpdate,
                 Self::read_incoming_messages.in_set(ReadIncomingSystems),
@@ -21,7 +23,7 @@ impl Plugin for HookupSendablePlugin {
     }
 }
 
-impl HookupSendablePlugin {
+impl HookupCorePlugin {
     pub fn read_incoming_messages(connections: Query<&mut Connection>) {
         for mut connection in connections {
             connection.collect_messages();

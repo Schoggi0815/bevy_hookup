@@ -13,7 +13,7 @@ use crate::{
         send_entity_systems::SendEntitySystems,
         sync_entity::{SyncEntity, SyncEntityOwner},
     },
-    hookup_sendable_plugin::ReadIncomingSystems,
+    hookup_core_plugin::ReadIncomingSystems,
 };
 
 pub struct HookupEntityPlugin;
@@ -37,10 +37,16 @@ impl Plugin for HookupEntityPlugin {
 
 fn send_removed_entites(
     trigger: On<Remove, SyncEntityOwner>,
-    sync_entities: Query<(&SyncEntity, &SyncEntityOwner)>,
+    sync_entities: Query<(
+        &SyncEntity,
+        &SyncEntityOwner,
+        Option<&EntityOrigin<ClientId>>,
+    )>,
     connections: Query<&mut Connection>,
+    client_id: Res<ClientId>,
 ) -> Result {
-    let Ok((removed_entity, removed_owner)) = sync_entities.get(trigger.entity) else {
+    let Ok((removed_entity, removed_owner, entity_origin)) = sync_entities.get(trigger.entity)
+    else {
         warn!("Couldn't find removed sync entity.");
         return Ok(());
     };
@@ -53,7 +59,9 @@ fn send_removed_entites(
             continue;
         }
 
-        connection.entity_removed(removed_entity.sync_id)?;
+        let origin = entity_origin.map_or(*client_id, |eo| eo.0);
+
+        connection.entity_removed(removed_entity.sync_id, origin)?;
     }
 
     Ok(())
@@ -61,15 +69,25 @@ fn send_removed_entites(
 
 fn send_entites(
     mut connections: Query<&mut Connection>,
-    sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity), Changed<SyncEntityOwner>>,
+    sync_entities: Query<
+        (
+            &mut SyncEntityOwner,
+            &SyncEntity,
+            Option<&EntityOrigin<ClientId>>,
+        ),
+        Changed<SyncEntityOwner>,
+    >,
+    client_id: Res<ClientId>,
 ) -> Result {
-    for (mut owner, sync) in sync_entities {
+    for (mut owner, sync, origin_client) in sync_entities {
+        let origin = origin_client.map_or(*client_id, |oc| oc.0);
+
         for mut session in connections.iter_mut() {
             let session_id = session.get_connection_id();
             let in_session = owner.on_sessions.contains(&session_id);
             let allowed_in_session = owner.session_read_filter.is_allowed(&session_id);
             if in_session && !allowed_in_session {
-                session.entity_removed(sync.sync_id)?;
+                session.entity_removed(sync.sync_id, origin)?;
                 owner.on_sessions = owner
                     .on_sessions
                     .clone()
@@ -77,7 +95,7 @@ fn send_entites(
                     .filter(|sid| *sid != session_id)
                     .collect();
             } else if !in_session && allowed_in_session {
-                session.entity_added(sync.sync_id)?;
+                session.entity_added(sync.sync_id, origin)?;
                 owner.on_sessions.push(session_id);
             }
         }
@@ -88,10 +106,15 @@ fn send_entites(
 
 fn init_session(
     connections: Query<&mut Connection, Added<Connection>>,
-    mut sync_entities: Query<(&mut SyncEntityOwner, &SyncEntity)>,
+    mut sync_entities: Query<(
+        &mut SyncEntityOwner,
+        &SyncEntity,
+        Option<&EntityOrigin<ClientId>>,
+    )>,
+    client_id: Res<ClientId>,
 ) -> Result {
     for mut connection in connections {
-        for (mut owner, sync) in sync_entities.iter_mut() {
+        for (mut owner, sync, origin_client) in sync_entities.iter_mut() {
             if !owner
                 .session_read_filter
                 .is_allowed(&connection.get_connection_id())
@@ -99,7 +122,9 @@ fn init_session(
                 continue;
             }
 
-            connection.entity_added(sync.sync_id)?;
+            let origin = origin_client.map_or(*client_id, |oc| oc.0);
+
+            connection.entity_added(sync.sync_id, origin)?;
             owner.on_sessions.push(connection.get_connection_id());
         }
     }
@@ -113,8 +138,12 @@ fn check_entity_channel(
     sync_entities: Query<(Entity, &SyncEntity)>,
 ) {
     for connection in connections {
-        for (action, id) in connection.messages().filter_map(|ra| match ra {
-            RemoteAction::Entity { action, id } => Some((action, id)),
+        for (action, id, client_id) in connection.messages().filter_map(|ra| match ra {
+            RemoteAction::Entity {
+                action,
+                id,
+                client_id,
+            } => Some((action, id, client_id)),
             _ => None,
         }) {
             let sync_entity = sync_entities
@@ -132,6 +161,7 @@ fn check_entity_channel(
                     commands.spawn((
                         SyncEntity::new_from_id(*id),
                         EntityOrigin(connection.get_connection_id()),
+                        EntityOrigin(*client_id),
                     ));
                 }
                 EntityAction::Remove => {

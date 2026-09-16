@@ -1,3 +1,4 @@
+use crate::client_id::ClientId;
 use crate::component_sharing::component_type_id::ComponentTypeId;
 use crate::connection::connection_messenger::ConnectionMessenger;
 use crate::connection::remote_action::{ComponentAction, EntityAction, RemoteAction};
@@ -40,18 +41,20 @@ impl Connection {
         self.messenger.get_connection_id()
     }
 
-    pub fn entity_added(&mut self, sync_id: SyncEntityId) -> Result {
+    pub fn entity_added(&mut self, sync_id: SyncEntityId, client_id: ClientId) -> Result {
         self.messenger.send_action(RemoteAction::Entity {
             action: EntityAction::Add,
             id: sync_id,
+            client_id,
         })?;
         Ok(())
     }
 
-    pub fn entity_removed(&mut self, sync_id: SyncEntityId) -> Result {
+    pub fn entity_removed(&mut self, sync_id: SyncEntityId, client_id: ClientId) -> Result {
         self.messenger.send_action(RemoteAction::Entity {
             action: EntityAction::Remove,
             id: sync_id,
+            client_id,
         })?;
         Ok(())
     }
@@ -71,6 +74,7 @@ impl Connection {
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
         component_data: &T,
+        client_id: ClientId,
     ) -> Result {
         let Some(component_data_raw) = self.serialize(component_data) else {
             return Ok(());
@@ -81,6 +85,7 @@ impl Connection {
             action: ComponentAction::AddOrUpdate { component_data_raw },
             component_type_id,
             entity_id,
+            client_id,
         })?;
         Ok(())
     }
@@ -90,6 +95,7 @@ impl Connection {
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
         component_data: &T,
+        client_id: ClientId,
     ) -> Result {
         let Some(component_data_raw) = self.serialize(component_data) else {
             return Ok(());
@@ -100,6 +106,7 @@ impl Connection {
             action: ComponentAction::AddOrUpdate { component_data_raw },
             component_type_id,
             entity_id,
+            client_id,
         })?;
         Ok(())
     }
@@ -108,11 +115,13 @@ impl Connection {
         &mut self,
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
+        client_id: ClientId,
     ) -> Result {
         self.messenger.send_action(RemoteAction::Component {
             action: ComponentAction::Remove,
             component_type_id,
             entity_id,
+            client_id,
         })?;
         Ok(())
     }
@@ -121,6 +130,7 @@ impl Connection {
         &mut self,
         event_type_id: EventTypeId,
         event_data: &T,
+        client_id: ClientId,
     ) -> Result {
         let Some(event_data_raw) = self.serialize(event_data) else {
             return Ok(());
@@ -130,6 +140,7 @@ impl Connection {
         self.messenger.send_action(RemoteAction::SendEvent {
             event_type_id,
             event_data_raw,
+            client_id,
         })?;
         Ok(())
     }
