@@ -4,29 +4,33 @@ use bevy::prelude::*;
 
 use crate::{connection::connection_id::ConnectionId, filter::Filter};
 
+#[derive(Debug, Clone, Deref, DerefMut, Component, Reflect)]
+pub struct ComponentReadFilter<TComponent, T>(
+    #[deref] pub Filter<T>,
+    #[reflect(ignore)] PhantomData<TComponent>,
+);
+
+impl<TComponent, T> ComponentReadFilter<TComponent, T> {
+    pub fn new(filter: Filter<T>) -> Self {
+        Self(filter, Default::default())
+    }
+}
+
 #[derive(Component, Reflect, Clone)]
-pub struct ShareComponent<TComponent> {
+#[require(
+    ComponentReadFilter::<TComponent, ConnectionId>::new(Filter::allow_all()),
+)]
+pub struct ShareComponent<TComponent: Component> {
     #[reflect(ignore)]
     phantom: PhantomData<TComponent>,
     pub on_sessions: Vec<ConnectionId>,
-    pub read_filter: Filter<ConnectionId>,
 }
 
-impl<T> Default for ShareComponent<T> {
+impl<T: Component> Default for ShareComponent<T> {
     fn default() -> Self {
         Self {
             phantom: Default::default(),
             on_sessions: Vec::<ConnectionId>::new(),
-            read_filter: Filter::AllowAll,
-        }
-    }
-}
-
-impl<T> ShareComponent<T> {
-    pub fn with_read_filter(self, read_filter: Filter<ConnectionId>) -> Self {
-        Self {
-            read_filter,
-            ..self
         }
     }
 }

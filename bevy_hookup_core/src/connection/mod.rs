@@ -3,6 +3,7 @@ use crate::component_sharing::component_type_id::ComponentTypeId;
 use crate::connection::connection_messenger::ConnectionMessenger;
 use crate::connection::remote_action::{ComponentAction, EntityAction, RemoteAction};
 use crate::event_sharing::event_type_id::EventTypeId;
+use crate::filter::Filter;
 use crate::{
     connection::connection_id::ConnectionId, entity_sharing::sync_entity_id::SyncEntityId,
 };
@@ -41,9 +42,36 @@ impl Connection {
         self.messenger.get_connection_id()
     }
 
-    pub fn entity_added(&mut self, sync_id: SyncEntityId, client_id: ClientId) -> Result {
+    pub fn entity_added(
+        &mut self,
+        sync_id: SyncEntityId,
+        client_id: ClientId,
+        client_read_filter: Filter<ClientId>,
+        client_write_filter: Filter<ClientId>,
+    ) -> Result {
         self.messenger.send_action(RemoteAction::Entity {
-            action: EntityAction::Add,
+            action: EntityAction::AddOrUpdate {
+                client_read_filter,
+                client_write_filter,
+            },
+            id: sync_id,
+            client_id,
+        })?;
+        Ok(())
+    }
+
+    pub fn entity_updated(
+        &mut self,
+        sync_id: SyncEntityId,
+        client_id: ClientId,
+        client_read_filter: Filter<ClientId>,
+        client_write_filter: Filter<ClientId>,
+    ) -> Result {
+        self.messenger.send_action(RemoteAction::Entity {
+            action: EntityAction::AddOrUpdate {
+                client_read_filter,
+                client_write_filter,
+            },
             id: sync_id,
             client_id,
         })?;

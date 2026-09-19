@@ -1,21 +1,31 @@
 use bevy::{ecs::system::NonSendMarker, prelude::*};
 use bevy_hookup_core::{
+    client_id::ClientId,
     component_sharing::{
-        hookup_component_plugin::HookupReflectComponentPlugin, share_component::ShareComponent,
+        hookup_component_plugin::HookupReflectComponentPlugin,
+        share_component::{ComponentReadFilter, ShareComponent},
     },
-    entity_sharing::sync_entity::SyncEntityOwner,
+    connection::connection_id::ConnectionId,
+    entity_sharing::sync_entity::{EntityReadFilter, SyncEntityOwner},
     event_sharing::{
         hookup_event_plugin::HookupEventPlugin, received_event::ReceivedEvent,
         send_event::SendEvent,
     },
     filter::Filter,
     hookup_core_plugin::HookupCorePlugin,
+    resharing::{
+        reshare_component_plugin::ReshareComponentPlugin,
+        reshare_entity_plugin::ReshareEntityPlugin,
+    },
 };
 use bevy_hookup_messenger_websocket::{
     websocket_client::WebsocketClient, websocket_client_plugin::WebsocketClientPlugin,
     websocket_server::WebsocketServer, websocket_server_plugin::WebsocketServerPlugin,
 };
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
+use bevy_inspector_egui::{
+    bevy_egui::EguiPlugin,
+    quick::{ResourceInspectorPlugin, WorldInspectorPlugin},
+};
 
 use crate::{
     test_component::TestComponent, test_component_2::TestComponent2, test_event::TestEvent,
@@ -37,8 +47,11 @@ async fn main() {
             HookupReflectComponentPlugin::<TestComponent2, 1>::default(),
             HookupReflectComponentPlugin::<Name, 2>::default(),
             HookupEventPlugin::<TestEvent, 0>::default(),
+            ReshareEntityPlugin,
+            ReshareComponentPlugin::<Name>::default(),
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
+            ResourceInspectorPlugin::<ClientId>::default(),
         ))
         .add_systems(Startup, setup)
         .add_systems(
@@ -77,8 +90,8 @@ fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
             TestComponent { test_field: 2 },
             ShareComponent::<TestComponent>::default(),
             TestComponent2 { test_field: 4 },
-            ShareComponent::<TestComponent2>::default()
-                .with_read_filter(Filter::Whitelist(Vec::new())),
+            ShareComponent::<TestComponent2>::default(),
+            ComponentReadFilter::<TestComponent2, ConnectionId>::new(Filter::Whitelist(Vec::new())),
         ));
     }
 }

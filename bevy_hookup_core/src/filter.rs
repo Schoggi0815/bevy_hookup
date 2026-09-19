@@ -1,32 +1,31 @@
 use bevy::reflect::Reflect;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Reflect, Clone, PartialEq, Eq)]
+#[derive(Debug, Reflect, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Filter<T> {
-    AllowAll,
-    AllowNone,
     Blacklist(Vec<T>),
     Whitelist(Vec<T>),
 }
 
 impl<T: PartialEq> Filter<T> {
+    pub fn allow_all() -> Self {
+        Self::Blacklist(vec![])
+    }
+
+    pub fn allow_none() -> Self {
+        Self::Whitelist(vec![])
+    }
+
     pub fn is_allowed(&self, entry: &T) -> bool {
         match self {
-            Filter::AllowAll => true,
-            Filter::AllowNone => false,
             Filter::Blacklist(items) => !items.contains(entry),
             Filter::Whitelist(items) => items.contains(entry),
         }
     }
 
     pub fn merge(self, other: Self) -> Self {
-        if matches!(other, Self::AllowAll) {
-            return self;
-        }
-
         match self {
-            Filter::AllowAll => other,
-            Filter::AllowNone => self,
             Filter::Blacklist(self_items) => match other {
                 Filter::Blacklist(other_items) => Filter::Blacklist(
                     self_items
@@ -41,7 +40,6 @@ impl<T: PartialEq> Filter<T> {
                         .filter(|item| !self_items.contains(item))
                         .collect_vec(),
                 ),
-                _ => other,
             },
             Filter::Whitelist(self_items) => match other {
                 Filter::Blacklist(other_items) => Filter::Whitelist(
@@ -56,7 +54,6 @@ impl<T: PartialEq> Filter<T> {
                         .filter(|item| other_items.contains(item))
                         .collect_vec(),
                 ),
-                _ => other,
             },
         }
     }

@@ -1,21 +1,33 @@
 use bevy::prelude::*;
 
 use crate::{
-    connection::connection_id::ConnectionId, entity_sharing::sync_entity_id::SyncEntityId,
-    filter::Filter,
+    client_id::ClientId, connection::connection_id::ConnectionId,
+    entity_sharing::sync_entity_id::SyncEntityId, filter::Filter,
 };
 
+#[derive(Debug, Clone, Deref, DerefMut, Component, Reflect)]
+pub struct EntityReadFilter<T>(pub Filter<T>);
+
+#[derive(Debug, Clone, Deref, DerefMut, Component, Reflect)]
+pub struct EntityWriteFilter<T>(pub Filter<T>);
+
 #[derive(Reflect, Component, Clone, Default)]
+#[require(
+    EntityReadFilter::<ClientId>(Filter::allow_all()),
+    EntityWriteFilter::<ClientId>(Filter::allow_none()),
+)]
 pub struct SyncEntity {
     pub sync_id: SyncEntityId,
 }
 
 #[derive(Reflect, Component, Clone)]
-#[require(SyncEntity)]
+#[require(
+    SyncEntity,
+    EntityReadFilter::<ConnectionId>(Filter::allow_all()),
+    EntityWriteFilter::<ConnectionId>(Filter::allow_none()),
+)]
 pub struct SyncEntityOwner {
-    pub on_sessions: Vec<ConnectionId>,
-    pub session_read_filter: Filter<ConnectionId>,
-    pub session_write_filter: Filter<ConnectionId>,
+    pub on_connections: Vec<ConnectionId>,
 }
 
 impl Default for SyncEntityOwner {
@@ -27,20 +39,8 @@ impl Default for SyncEntityOwner {
 impl SyncEntityOwner {
     pub fn new() -> Self {
         Self {
-            on_sessions: Vec::new(),
-            session_read_filter: Filter::AllowAll,
-            session_write_filter: Filter::AllowNone,
+            on_connections: Vec::new(),
         }
-    }
-
-    pub fn with_read_filter(mut self, read_filter: Filter<ConnectionId>) -> Self {
-        self.session_read_filter = read_filter;
-        self
-    }
-
-    pub fn with_write_filter(mut self, write_filter: Filter<ConnectionId>) -> Self {
-        self.session_write_filter = write_filter;
-        self
     }
 }
 

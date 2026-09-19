@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     client_id::ClientId, component_sharing::component_type_id::ComponentTypeId,
     entity_sharing::sync_entity_id::SyncEntityId, event_sharing::event_type_id::EventTypeId,
+    filter::Filter,
 };
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -27,7 +28,10 @@ pub enum RemoteAction {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum EntityAction {
-    Add,
+    AddOrUpdate {
+        client_read_filter: Filter<ClientId>,
+        client_write_filter: Filter<ClientId>,
+    },
     Remove,
 }
 

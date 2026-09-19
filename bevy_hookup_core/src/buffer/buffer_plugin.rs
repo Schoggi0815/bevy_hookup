@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use bevy::{ecs::component::Mutable, prelude::*};
+use bevy::{
+    ecs::{component::Mutable, entity_disabling::Disabled},
+    prelude::*,
+};
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
@@ -106,6 +109,7 @@ impl<
             (
                 Without<ComponentBuffer<TComponent, BUFFER_SIIZE>>,
                 With<ComponentOrigin<TComponent, ConnectionId>>,
+                Allow<Disabled>,
             ),
         >,
         mut commands: Commands,
@@ -126,11 +130,14 @@ impl<
     }
 
     fn update_buffer(
-        buffers: Query<(
-            &mut ComponentBuffer<TComponent, BUFFER_SIIZE>,
-            &mut Buffered<TComponent>,
-            Ref<BufferObject<TComponent>>,
-        )>,
+        buffers: Query<
+            (
+                &mut ComponentBuffer<TComponent, BUFFER_SIIZE>,
+                &mut Buffered<TComponent>,
+                Ref<BufferObject<TComponent>>,
+            ),
+            Allow<Disabled>,
+        >,
     ) {
         for (mut buffer, mut buffered, buffer_object) in buffers {
             if buffer_object.is_changed() {

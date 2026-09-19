@@ -1,14 +1,14 @@
-use bevy::prelude::*;
+use bevy::{ecs::entity_disabling::Disabled, prelude::*};
 
 use std::marker::PhantomData;
 
 use crate::{
     component_sharing::{
-        receive_component_systems::ReceiveComponentSystems,
+        component_origin::ComponentOrigin, receive_component_systems::ReceiveComponentSystems,
         send_component_systems::SendComponentSystems, share_component::ShareComponent,
     },
-    entity_sharing::sync_entity::{SyncEntity, SyncEntityOwner},
-    resharing::reshare_entity_component::ReshareEntityComponent,
+    connection::connection_id::ConnectionId,
+    entity_sharing::sync_entity::SyncEntityOwner,
 };
 
 pub struct ReshareComponentPlugin<TComponent>(PhantomData<TComponent>);
@@ -24,7 +24,7 @@ where
     TComponent: Send + Sync + 'static + Clone + Component,
 {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (Self::reshare_components, Self::add_reshare_marker))
+        app.add_systems(Update, Self::reshare_components)
             .add_observer(Self::reshare_remove)
             .configure_sets(
                 FixedUpdate,
@@ -39,9 +39,11 @@ impl<TComponent> ReshareComponentPlugin<TComponent> {
         components_without_share: Query<
             Entity,
             (
-                With<ReshareEntityComponent>,
+                With<ComponentOrigin<TComponent, ConnectionId>>,
                 With<TComponent>,
                 Without<ShareComponent<TComponent>>,
+                With<SyncEntityOwner>,
+                Allow<Disabled>,
             ),
         >,
         mut commands: Commands,
@@ -62,24 +64,5 @@ impl<TComponent> ReshareComponentPlugin<TComponent> {
         commands
             .entity(event.entity)
             .remove::<ShareComponent<TComponent>>();
-    }
-
-    fn add_reshare_marker(
-        mut commands: Commands,
-        to_reshare: Query<
-            Entity,
-            (
-                With<TComponent>,
-                With<SyncEntity>,
-                Without<SyncEntityOwner>,
-                Without<ReshareEntityComponent>,
-            ),
-        >,
-    ) where
-        TComponent: Send + Sync + 'static + Component,
-    {
-        for entity in to_reshare {
-            commands.entity(entity).insert(ReshareEntityComponent);
-        }
     }
 }

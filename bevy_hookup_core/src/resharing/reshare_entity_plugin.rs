@@ -1,14 +1,13 @@
-use bevy::prelude::*;
+use bevy::{ecs::entity_disabling::Disabled, prelude::*};
 
 use crate::{
     connection::connection_id::ConnectionId,
     entity_sharing::{
         entity_origin::EntityOrigin,
         receive_entity_systems::ReceiveEntitySystems,
-        sync_entity::{SyncEntity, SyncEntityOwner},
+        sync_entity::{EntityReadFilter, EntityWriteFilter, SyncEntity, SyncEntityOwner},
     },
     filter::Filter,
-    resharing::reshare_entity_component::ReshareEntityComponent,
 };
 
 pub struct ReshareEntityPlugin;
@@ -23,20 +22,16 @@ impl ReshareEntityPlugin {
     fn reshare_entity(
         missing_owners: Query<
             (Entity, &EntityOrigin<ConnectionId>),
-            (
-                With<ReshareEntityComponent>,
-                With<SyncEntity>,
-                Without<SyncEntityOwner>,
-            ),
+            (With<SyncEntity>, Without<SyncEntityOwner>, Allow<Disabled>),
         >,
         mut commands: Commands,
     ) {
         for (entity, from_session) in missing_owners {
-            commands.entity(entity).insert(
-                SyncEntityOwner::new()
-                    .with_read_filter(Filter::Blacklist(vec![from_session.0]))
-                    .with_write_filter(Filter::Whitelist(vec![from_session.0])),
-            );
+            commands.entity(entity).insert((
+                SyncEntityOwner::new(),
+                EntityReadFilter(Filter::Blacklist(vec![from_session.0])),
+                EntityWriteFilter(Filter::Whitelist(vec![from_session.0])),
+            ));
         }
     }
 }

@@ -42,6 +42,7 @@ impl ConnectionMessenger for WebsocketSession {
     }
 
     fn send_action(&self, action: RemoteAction) -> anyhow::Result<()> {
+        debug!("Sending action: [{:?}]", action);
         self.outgoing_sender.send(action)?;
         Ok(())
     }

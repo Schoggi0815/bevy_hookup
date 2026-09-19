@@ -1,14 +1,19 @@
 use std::marker::PhantomData;
 
-use bevy::{ecs::component::Mutable, prelude::*};
+use bevy::{
+    ecs::{component::Mutable, entity_disabling::Disabled},
+    prelude::*,
+};
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     client_id::ClientId,
     component_sharing::{
-        component_origin::ComponentOrigin, component_type_id::ComponentTypeId,
+        component_origin::ComponentOrigin,
+        component_type_id::ComponentTypeId,
         receive_component_systems::ReceiveComponentSystems,
-        send_component_systems::SendComponentSystems, share_component::ShareComponent,
+        send_component_systems::SendComponentSystems,
+        share_component::{ComponentReadFilter, ShareComponent},
     },
     connection::{
         Connection,
@@ -18,7 +23,7 @@ use crate::{
     entity_sharing::{
         receive_entity_systems::ReceiveEntitySystems,
         send_entity_systems::SendEntitySystems,
-        sync_entity::{SyncEntity, SyncEntityOwner},
+        sync_entity::{EntityReadFilter, EntityWriteFilter, SyncEntity, SyncEntityOwner},
     },
     event_sharing::session_events::{
         SessionAddedComponent, SessionRemovedComponent, SessionUpdatedComponent,
@@ -71,7 +76,8 @@ impl<TComponent: Component<Mutability = Mutable> + TypePath + Reflect> Plugin
     fn build(&self, app: &mut App) {
         app.register_type::<ComponentOrigin<TComponent, ConnectionId>>()
             .register_type::<ComponentOrigin<TComponent, ClientId>>()
-            .register_type::<ShareComponent<TComponent>>();
+            .register_type::<ShareComponent<TComponent>>()
+            .register_type::<ComponentReadFilter<TComponent, ConnectionId>>();
     }
 }
 
@@ -123,16 +129,19 @@ impl<
 {
     fn send_removed_owned(
         trigger: On<Remove, ShareComponent<TComponent>>,
-        sync_entities: Query<(
-            &SyncEntity,
-            &ShareComponent<TComponent>,
-            Option<&SyncEntityOwner>,
-            Option<&ComponentOrigin<TComponent, ClientId>>,
-        )>,
+        sync_entities: Query<
+            (
+                &SyncEntity,
+                Option<&ComponentOrigin<TComponent, ClientId>>,
+                Option<&EntityReadFilter<ConnectionId>>,
+                &ComponentReadFilter<TComponent, ConnectionId>,
+            ),
+            (Allow<Disabled>, With<ShareComponent<TComponent>>),
+        >,
         connections: Query<&mut Connection>,
         client_id: Res<ClientId>,
     ) -> Result {
-        let Ok((removed_entity, removed_owner, removed_entity_owner, origin_client)) =
+        let Ok((removed_entity, origin_client, entity_filter, component_filter)) =
             sync_entities.get(trigger.entity)
         else {
             warn!("Removed Owner not found!");
@@ -142,18 +151,13 @@ impl<
         let origin = origin_client.map_or(*client_id, |oc| oc.0);
 
         for mut session in connections {
-            if let Some(removed_entity_owner) = removed_entity_owner
-                && !removed_entity_owner
-                    .session_read_filter
-                    .is_allowed(&session.get_connection_id())
+            if let Some(entity_filter) = entity_filter
+                && !entity_filter.is_allowed(&session.get_connection_id())
             {
                 continue;
             }
 
-            if !removed_owner
-                .read_filter
-                .is_allowed(&session.get_connection_id())
-            {
+            if !component_filter.is_allowed(&session.get_connection_id()) {
                 continue;
             }
 
@@ -168,50 +172,56 @@ impl<
     }
 
     pub fn send_owned(
-        owned_components: Query<(
-            &mut ShareComponent<TComponent>,
-            Ref<TComponent>,
-            &SyncEntity,
-            Option<Ref<SyncEntityOwner>>,
-            Option<&ComponentOrigin<TComponent, ClientId>>,
-        )>,
+        owned_components: Query<
+            (
+                &mut ShareComponent<TComponent>,
+                Ref<TComponent>,
+                &SyncEntity,
+                Option<Ref<EntityReadFilter<ConnectionId>>>,
+                Option<Ref<SyncEntityOwner>>,
+                Option<&ComponentOrigin<TComponent, ClientId>>,
+                Ref<ComponentReadFilter<TComponent, ConnectionId>>,
+            ),
+            Allow<Disabled>,
+        >,
         mut connections: Query<&mut Connection>,
         client_id: Res<ClientId>,
     ) -> Result {
-        for (mut share_component, component, sync_entity, sync_owner, origin_client) in
-            owned_components
+        for (
+            mut share_component,
+            component,
+            sync_entity,
+            entity_filter,
+            entity_owner,
+            origin_client,
+            connection_filter,
+        ) in owned_components
         {
             let component_changed = component.is_changed();
             let share_changed = share_component.is_changed();
-            let sync_owner_changed = if let Some(ref sync_owner) = sync_owner {
-                sync_owner.is_changed()
-            } else {
-                false
-            };
+            let entity_filter_changed = entity_filter.map_or(false, |ef| ef.is_changed());
+            let entity_owner_changed = entity_owner.map_or(false, |eo| eo.is_changed());
 
-            if !component_changed && !sync_owner_changed && !share_changed {
+            if !component_changed
+                && !entity_filter_changed
+                && !entity_owner_changed
+                && !share_changed
+                && !connection_filter.is_changed()
+            {
                 continue;
             }
-
-            let session_filter = share_component.read_filter.clone();
 
             let origin = origin_client.map_or(*client_id, |oc| oc.0);
 
             for mut session in connections.iter_mut() {
-                let is_component_allowed = session_filter.is_allowed(&session.get_connection_id());
+                let is_component_allowed =
+                    connection_filter.is_allowed(&session.get_connection_id());
                 let is_on = share_component
                     .on_sessions
                     .contains(&session.get_connection_id());
 
-                let is_entity_allowed = if let Some(ref sync_owner) = sync_owner
-                    && !sync_owner
-                        .session_read_filter
-                        .is_allowed(&session.get_connection_id())
-                {
-                    false
-                } else {
-                    true
-                };
+                let is_entity_allowed =
+                    entity_filter.map_or(true, |ef| ef.is_allowed(&session.get_connection_id()));
 
                 let is_allowed = is_component_allowed && is_entity_allowed;
 
@@ -255,12 +265,15 @@ impl<
 
     fn check_session_channels(
         connections: Query<&Connection>,
-        mut sync_entites: Query<(
-            &SyncEntity,
-            Entity,
-            Option<&SyncEntityOwner>,
-            Option<&mut TComponent>,
-        )>,
+        mut sync_entites: Query<
+            (
+                &SyncEntity,
+                Entity,
+                Option<&EntityWriteFilter<ConnectionId>>,
+                Option<&mut TComponent>,
+            ),
+            Allow<Disabled>,
+        >,
         mut commands: Commands,
     ) {
         for connection in connections {
@@ -279,7 +292,7 @@ impl<
                 }
                 _ => None,
             }) {
-                let Some((_, entity, owner, data)) = sync_entites
+                let Some((_, entity, entity_filter, data)) = sync_entites
                     .iter_mut()
                     .find(|(se, ..)| se.sync_id == *entity_id)
                 else {
@@ -287,10 +300,7 @@ impl<
                     continue;
                 };
 
-                if let Some(owner) = owner
-                    && !owner
-                        .session_write_filter
-                        .is_allowed(&connection.get_connection_id())
+                if !entity_filter.map_or(true, |ef| ef.is_allowed(&connection.get_connection_id()))
                 {
                     warn!(
                         "Connection [{:?}] tried to modify unallowed entity [{:?}]!",
