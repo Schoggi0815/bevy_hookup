@@ -8,8 +8,11 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     buffer::{
-        buffer_object::BufferObject, buffer_systems::BufferSystems, buffered::Buffered,
-        component_buffer::ComponentBuffer, interpolate::Interpolate,
+        buffer_object::BufferObject,
+        buffer_systems::{RecieveBufferSystems, SendBufferSystems},
+        buffered::Buffered,
+        component_buffer::ComponentBuffer,
+        interpolate::Interpolate,
     },
     component_sharing::{
         component_origin::ComponentOrigin, hookup_component_plugin::HookupComponentPlugin,
@@ -50,19 +53,25 @@ impl<
             .add_systems(
                 FixedUpdate,
                 (
-                    Self::add_buffer_object.before(SendComponentSystems::<TComponent>::default()),
-                    Self::update_buffer_objects
-                        .before(SendComponentSystems::<TComponent>::default()),
-                    Self::update_buffer.in_set(BufferSystems::<TComponent>::default()),
+                    Self::add_buffer_object
+                        .in_set(SendBufferSystems::<TComponent>::default())
+                        .before(Self::update_buffer_objects),
+                    Self::update_buffer_objects.in_set(SendBufferSystems::<TComponent>::default()),
+                    Self::update_buffer.in_set(RecieveBufferSystems::<TComponent>::default()),
                     Self::add_buffer
                         .before(Self::update_buffer)
-                        .in_set(BufferSystems::<TComponent>::default()),
+                        .in_set(RecieveBufferSystems::<TComponent>::default()),
                 ),
             )
             .configure_sets(
                 FixedUpdate,
-                BufferSystems::<TComponent>::default()
+                RecieveBufferSystems::<TComponent>::default()
                     .after(ReceiveComponentSystems::<TComponent>::default()),
+            )
+            .configure_sets(
+                FixedUpdate,
+                SendBufferSystems::<TComponent>::default()
+                    .before(SendComponentSystems::<TComponent>::default()),
             );
     }
 }

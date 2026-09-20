@@ -1,11 +1,13 @@
 [package]
 name = "bevy_hookup_messenger_websocket"
-version = "2.8.0"
+version = "3.0.0"
 edition = "2024"
 description = "The websocket messenger of the bevy_hookup library"
 readme = "./README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Schoggi0815/bevy_hookup"
+keywords = ["bevy", "multiplayer", "networking"]
+categories = ["game-development", "network-programming"]
 
 [dependencies]
 bevy = "0.19.1"

@@ -6,6 +6,8 @@ description = "The core library of the bevy_hookup library"
 readme = "../README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Schoggi0815/bevy_hookup"
+keywords = ["bevy", "multiplayer", "networking"]
+categories = ["game-development", "network-programming"]
 
 [dependencies]
 bevy = "0.19.1"

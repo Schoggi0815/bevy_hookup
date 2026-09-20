@@ -1067,7 +1067,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_messenger_steamworks"
-version = "1.4.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "bevy",
@@ -1084,7 +1084,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_hookup_messenger_websocket"
-version = "2.8.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "bevy",
