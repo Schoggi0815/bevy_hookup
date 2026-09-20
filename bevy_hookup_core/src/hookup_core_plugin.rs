@@ -4,6 +4,7 @@ use crate::{
     client_id::ClientId,
     connection::{Connection, connection_id::ConnectionId},
     entity_sharing::{entity_origin::EntityOrigin, hookup_entity_plugin::HookupEntityPlugin},
+    event_map::EventMap,
 };
 
 pub struct HookupCorePlugin;
@@ -14,6 +15,7 @@ pub struct ReadIncomingSystems;
 impl Plugin for HookupCorePlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.insert_resource(ClientId::default())
+            .insert_resource(EventMap::default())
             .add_plugins(HookupEntityPlugin)
             .add_systems(
                 FixedPostUpdate,
@@ -24,9 +26,13 @@ impl Plugin for HookupCorePlugin {
 }
 
 impl HookupCorePlugin {
-    pub fn read_incoming_messages(connections: Query<&mut Connection>) {
+    pub fn read_incoming_messages(
+        connections: Query<&mut Connection>,
+        mut event_map: ResMut<EventMap>,
+    ) {
+        event_map.clear_old();
         for mut connection in connections {
-            connection.collect_messages();
+            connection.collect_messages(&mut event_map);
         }
     }
 

@@ -6,7 +6,8 @@ use bevy_hookup_core::{
         share_component::{ComponentReadFilter, ShareComponent},
     },
     connection::connection_id::ConnectionId,
-    entity_sharing::sync_entity::{EntityReadFilter, SyncEntityOwner},
+    entity_sharing::sync_entity::SyncEntityOwner,
+    event_map::EventMap,
     event_sharing::{
         hookup_event_plugin::HookupEventPlugin, received_event::ReceivedEvent,
         send_event::SendEvent,
@@ -15,7 +16,7 @@ use bevy_hookup_core::{
     hookup_core_plugin::HookupCorePlugin,
     resharing::{
         reshare_component_plugin::ReshareComponentPlugin,
-        reshare_entity_plugin::ReshareEntityPlugin,
+        reshare_entity_plugin::ReshareEntityPlugin, reshare_events_plugin::ReshareEventsPlugin,
     },
 };
 use bevy_hookup_messenger_websocket::{
@@ -49,9 +50,11 @@ async fn main() {
             HookupEventPlugin::<TestEvent, 0>::default(),
             ReshareEntityPlugin,
             ReshareComponentPlugin::<Name>::default(),
+            ReshareEventsPlugin,
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
             ResourceInspectorPlugin::<ClientId>::default(),
+            ResourceInspectorPlugin::<EventMap>::default(),
         ))
         .add_systems(Startup, setup)
         .add_systems(
@@ -98,6 +101,7 @@ fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
 
 fn send_event(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
     if input.just_pressed(KeyCode::F3) {
+        info!("Sent Event");
         commands.trigger(SendEvent::new(TestEvent { test_value: 12 }));
     }
 }

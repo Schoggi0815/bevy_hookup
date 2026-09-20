@@ -1,7 +1,10 @@
 use crate::client_id::ClientId;
 use crate::component_sharing::component_type_id::ComponentTypeId;
 use crate::connection::connection_messenger::ConnectionMessenger;
-use crate::connection::remote_action::{ComponentAction, EntityAction, RemoteAction};
+use crate::connection::remote_action::{
+    ComponentAction, EntityAction, EventId, EventTimestamp, RemoteAction,
+};
+use crate::event_map::EventMap;
 use crate::event_sharing::event_type_id::EventTypeId;
 use crate::filter::Filter;
 use crate::{
@@ -159,6 +162,9 @@ impl Connection {
         event_type_id: EventTypeId,
         event_data: &T,
         client_id: ClientId,
+        event_id: EventId,
+        event_timestamp: EventTimestamp,
+        client_filter: Filter<ClientId>,
     ) -> Result {
         let Some(event_data_raw) = self.serialize(event_data) else {
             return Ok(());
@@ -169,6 +175,29 @@ impl Connection {
             event_type_id,
             event_data_raw,
             client_id,
+            event_id,
+            timestamp: event_timestamp,
+            client_filter,
+        })?;
+        Ok(())
+    }
+
+    pub fn send_event_raw(
+        &mut self,
+        event_type_id: EventTypeId,
+        event_data_raw: Vec<u8>,
+        client_id: ClientId,
+        event_id: EventId,
+        event_timestamp: EventTimestamp,
+        client_filter: Filter<ClientId>,
+    ) -> Result {
+        self.messenger.send_action(RemoteAction::SendEvent {
+            event_type_id,
+            event_data_raw,
+            client_id,
+            event_id,
+            timestamp: event_timestamp,
+            client_filter,
         })?;
         Ok(())
     }
@@ -190,7 +219,28 @@ impl Connection {
         result
     }
 
-    pub fn collect_messages(&mut self) {
-        self.current_messanges = self.incoming.try_iter().collect_vec()
+    pub fn collect_messages(&mut self, event_map: &mut EventMap) {
+        self.current_messanges = self
+            .incoming
+            .try_iter()
+            .filter(|ra| match ra {
+                RemoteAction::SendEvent {
+                    event_type_id: _,
+                    event_data_raw: _,
+                    client_id: _,
+                    client_filter: _,
+                    event_id,
+                    timestamp,
+                } => {
+                    if event_map.valid(event_id, timestamp) {
+                        event_map.insert(*event_id, *timestamp);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => true,
+            })
+            .collect_vec()
     }
 }

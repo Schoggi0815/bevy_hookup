@@ -3,6 +3,7 @@ pub mod client_id;
 pub mod component_sharing;
 pub mod connection;
 pub mod entity_sharing;
+pub mod event_map;
 pub mod event_sharing;
 pub mod filter;
 pub mod hookup_core_plugin;

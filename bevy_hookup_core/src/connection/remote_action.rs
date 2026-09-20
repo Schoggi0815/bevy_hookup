@@ -1,3 +1,6 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use bevy::{prelude::Deref, reflect::Reflect};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -23,6 +26,9 @@ pub enum RemoteAction {
         event_type_id: EventTypeId,
         event_data_raw: Vec<u8>,
         client_id: ClientId,
+        event_id: EventId,
+        timestamp: EventTimestamp,
+        client_filter: Filter<ClientId>,
     },
 }
 
@@ -39,4 +45,29 @@ pub enum EntityAction {
 pub enum ComponentAction {
     AddOrUpdate { component_data_raw: Vec<u8> },
     Remove,
+}
+
+#[derive(Debug, Clone, Hash, Copy, Serialize, Deserialize, Reflect, PartialEq, Eq, Deref)]
+pub struct EventId(pub u64);
+
+impl Default for EventId {
+    fn default() -> Self {
+        Self(rand::random())
+    }
+}
+
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, Reflect, PartialEq, Eq, PartialOrd, Ord, Deref,
+)]
+pub struct EventTimestamp(pub u64);
+
+impl Default for EventTimestamp {
+    fn default() -> Self {
+        Self(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Are you time traveling???")
+                .as_secs(),
+        )
+    }
 }
