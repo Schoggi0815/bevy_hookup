@@ -1,53 +1,61 @@
 use bevy::prelude::*;
-use bevy_hookup_core::{
-    hook_session::{SessionId, SessionMessenger},
-    session::{Session, SessionChannels},
-    session_action::SessionAction,
+use bevy_hookup_core::connection::{
+    Connection, connection_id::ConnectionId, connection_messenger::ConnectionMessenger,
+    remote_action::RemoteAction,
 };
-use crossbeam::channel::unbounded;
-use serde::{Serialize, de::DeserializeOwned};
+use crossbeam::channel::{Receiver, Sender, unbounded};
 use tokio::sync::mpsc::UnboundedSender;
 
-pub struct WebsocketSession<TSendables> {
-    session_id: SessionId,
-    channels: SessionChannels<TSendables>,
-    websocket_sender: UnboundedSender<Vec<SessionAction<TSendables>>>,
+pub struct WebsocketSession {
+    connection_id: ConnectionId,
+    pub(crate) outgoing_sender: UnboundedSender<RemoteAction>,
+    pub(crate) incoming_receiver: Receiver<RemoteAction>,
+    pub(crate) incoming_sender: Sender<RemoteAction>,
 }
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
-    WebsocketSession<TSendables>
-{
-    pub fn new(websocket_sender: UnboundedSender<Vec<SessionAction<TSendables>>>) -> Self {
-        let (sender, receiver) = unbounded();
+impl WebsocketSession {
+    pub fn new(outgoing_sender: UnboundedSender<RemoteAction>) -> Self {
+        let (incoming_sender, incoming_receiver) = unbounded();
         Self {
-            websocket_sender,
-            session_id: SessionId::default(),
-            channels: SessionChannels { sender, receiver },
+            connection_id: ConnectionId::default(),
+            outgoing_sender,
+            incoming_receiver,
+            incoming_sender,
         }
     }
-
-    fn send_data(&mut self, data: Vec<SessionAction<TSendables>>) {
-        let _ = self.websocket_sender.send(data);
-    }
 }
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
-    SessionMessenger<TSendables> for WebsocketSession<TSendables>
-{
-    fn to_session(self) -> Session<TSendables> {
-        let channels = self.channels.clone();
-        Session::new(Box::new(self), channels)
+impl ConnectionMessenger for WebsocketSession {
+    fn to_connection(self) -> Connection {
+        Connection::new(self.incoming_receiver.clone(), Box::new(self))
     }
 
-    fn get_session_id(&self) -> SessionId {
-        self.session_id
+    fn get_connection_id(&self) -> ConnectionId {
+        self.connection_id
     }
 
-    fn get_channels(&self) -> SessionChannels<TSendables> {
-        self.channels.clone()
+    fn serialize(&self, data: Box<&dyn erased_serde::Serialize>) -> Result<Vec<u8>, anyhow::Error> {
+        let bytes = vec![];
+        let bytes = postcard::to_extend(&data, bytes)?;
+
+        Ok(bytes)
     }
 
-    fn handle_actions(&mut self, actions: &Vec<SessionAction<TSendables>>) {
-        self.send_data(actions.clone());
+    fn send_action(&self, action: RemoteAction) -> anyhow::Result<()> {
+        info!("Sending action: [{:?}]", action);
+        self.outgoing_sender.send(action)?;
+        Ok(())
+    }
+
+    fn with_deserializer(
+        &self,
+        raw: &[u8],
+        callback: &mut dyn FnMut(&mut dyn erased_serde::Deserializer) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        let mut deserializer = postcard::Deserializer::from_bytes(raw);
+
+        let mut erased = <dyn erased_serde::Deserializer>::erase(&mut deserializer);
+
+        callback(&mut erased)
     }
 }

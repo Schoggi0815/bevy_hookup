@@ -1,24 +1,17 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
-use bevy_hookup_core::hook_session::SessionMessenger;
+use bevy_hookup_core::connection::connection_messenger::ConnectionMessenger;
 use bevy_steamworks::{
     Client, SteamId, networking_sockets::InvalidHandle, networking_types::NetworkingIdentity,
 };
-use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     steam_reference::SteamReference, steamworks_session_handler::SteamworksSessionHandler,
 };
 
 #[derive(Component)]
-pub struct SteamworksClient<TSendables> {
-    phamtom: PhantomData<TSendables>,
-}
+pub struct SteamworksClient;
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + Sized>
-    SteamworksClient<TSendables>
-{
+impl SteamworksClient {
     pub fn create(
         client: &Client,
         steam_user: SteamId,
@@ -30,9 +23,9 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
             [],
         )?;
 
-        let (handler, session) = SteamworksSessionHandler::<TSendables>::new_pair(connection);
+        let (handler, session) = SteamworksSessionHandler::new_pair(connection);
 
-        commands.spawn((SteamReference(steam_user), session.to_session(), handler));
+        commands.spawn((SteamReference(steam_user), session.to_connection(), handler));
 
         Ok(())
     }

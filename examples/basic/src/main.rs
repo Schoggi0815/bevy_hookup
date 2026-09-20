@@ -1,23 +1,37 @@
 use bevy::{ecs::system::NonSendMarker, prelude::*};
 use bevy_hookup_core::{
-    hookup_component_plugin::HookupComponentPlugin, hookup_event_plugin::HookupEventPlugin,
-    hookup_sendable_plugin::HookupSendablePlugin, received_event::ReceivedEvent,
-    reshare_component_plugin::ReshareComponentPlugin, reshare_entity_plugin::ReshareEntityPlugin,
-    send_event::SendEvent, session_filter::SessionFilter, share_component::ShareComponent,
-    sync_entity::SyncEntityOwner,
+    client_id::ClientId,
+    component_sharing::{
+        hookup_component_plugin::HookupReflectComponentPlugin,
+        share_component::{ComponentReadFilter, ShareComponent},
+    },
+    connection::connection_id::ConnectionId,
+    entity_sharing::sync_entity::SyncEntityOwner,
+    event_map::EventMap,
+    event_sharing::{
+        hookup_event_plugin::HookupEventPlugin, received_event::ReceivedEvent,
+        send_event::SendEvent,
+    },
+    filter::Filter,
+    hookup_core_plugin::HookupCorePlugin,
+    resharing::{
+        reshare_component_plugin::ReshareComponentPlugin,
+        reshare_entity_plugin::ReshareEntityPlugin, reshare_events_plugin::ReshareEventsPlugin,
+    },
 };
 use bevy_hookup_messenger_websocket::{
     websocket_client::WebsocketClient, websocket_client_plugin::WebsocketClientPlugin,
     websocket_server::WebsocketServer, websocket_server_plugin::WebsocketServerPlugin,
 };
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
-
-use crate::{
-    all_sendables::Sendables, test_component::TestComponent, test_component_2::TestComponent2,
-    test_event::TestEvent,
+use bevy_inspector_egui::{
+    bevy_egui::EguiPlugin,
+    quick::{ResourceInspectorPlugin, WorldInspectorPlugin},
 };
 
-mod all_sendables;
+use crate::{
+    test_component::TestComponent, test_component_2::TestComponent2, test_event::TestEvent,
+};
+
 mod test_component;
 mod test_component_2;
 mod test_event;
@@ -27,17 +41,20 @@ async fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            WebsocketClientPlugin::<Sendables>::default(),
-            WebsocketServerPlugin::<Sendables>::default(),
-            HookupSendablePlugin::<Sendables>::default(),
-            HookupComponentPlugin::<Sendables, TestComponent>::default(),
-            HookupComponentPlugin::<Sendables, TestComponent2>::default(),
-            HookupComponentPlugin::<Sendables, Name>::default(),
+            WebsocketClientPlugin,
+            WebsocketServerPlugin,
+            HookupCorePlugin,
+            HookupReflectComponentPlugin::<TestComponent, 0>::default(),
+            HookupReflectComponentPlugin::<TestComponent2, 1>::default(),
+            HookupReflectComponentPlugin::<Name, 2>::default(),
+            HookupEventPlugin::<TestEvent, 0>::default(),
+            ReshareEntityPlugin,
             ReshareComponentPlugin::<Name>::default(),
-            ReshareEntityPlugin::<Sendables>::default(),
-            HookupEventPlugin::<Sendables, TestEvent>::default(),
+            ReshareEventsPlugin,
             EguiPlugin::default(),
             WorldInspectorPlugin::new(),
+            ResourceInspectorPlugin::<ClientId>::default(),
+            ResourceInspectorPlugin::<EventMap>::default(),
         ))
         .add_systems(Startup, setup)
         .add_systems(
@@ -54,13 +71,13 @@ fn setup(mut commands: Commands) {
 
 fn spawn_ws_server(mut commands: Commands, input: Res<ButtonInput<KeyCode>>, _: NonSendMarker) {
     if input.just_pressed(KeyCode::F1) {
-        commands.spawn(WebsocketServer::<Sendables>::new_with_port(1526));
+        commands.spawn(WebsocketServer::new_with_port(1526));
     }
 }
 
 fn spawn_ws_client(mut commands: Commands, input: Res<ButtonInput<KeyCode>>, _: NonSendMarker) {
     if input.just_pressed(KeyCode::F2) {
-        commands.spawn(WebsocketClient::<Sendables>::new_with_host_and_port(
+        commands.spawn(WebsocketClient::new_with_host_and_port(
             "127.0.0.1".into(),
             1526,
         ));
@@ -76,14 +93,15 @@ fn spawn_entity(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
             TestComponent { test_field: 2 },
             ShareComponent::<TestComponent>::default(),
             TestComponent2 { test_field: 4 },
-            ShareComponent::<TestComponent2>::default()
-                .with_read_filter(SessionFilter::Whitelist(Vec::new())),
+            ShareComponent::<TestComponent2>::default(),
+            ComponentReadFilter::<TestComponent2, ConnectionId>::new(Filter::Whitelist(Vec::new())),
         ));
     }
 }
 
 fn send_event(mut commands: Commands, input: Res<ButtonInput<KeyCode>>) {
     if input.just_pressed(KeyCode::F3) {
+        info!("Sent Event");
         commands.trigger(SendEvent::new(TestEvent { test_value: 12 }));
     }
 }

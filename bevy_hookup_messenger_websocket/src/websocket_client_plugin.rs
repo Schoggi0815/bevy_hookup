@@ -1,30 +1,11 @@
-use std::marker::PhantomData;
-
 use bevy::prelude::*;
-use bevy_hookup_core::session::Session;
-use serde::{Serialize, de::DeserializeOwned};
+use bevy_hookup_core::connection::Connection;
 
 use crate::{session_message::SessionMessage, websocket_client::WebsocketClient};
 
-pub struct WebsocketClientPlugin<
-    TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone,
-> {
-    _phantom_sendable: PhantomData<TSendables>,
-}
+pub struct WebsocketClientPlugin;
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> Default
-    for WebsocketClientPlugin<TSendables>
-{
-    fn default() -> Self {
-        Self {
-            _phantom_sendable: Default::default(),
-        }
-    }
-}
-
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> Plugin
-    for WebsocketClientPlugin<TSendables>
-{
+impl Plugin for WebsocketClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
@@ -33,12 +14,10 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone> P
     }
 }
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
-    WebsocketClientPlugin<TSendables>
-{
+impl WebsocketClientPlugin {
     fn manage_client_sessions(
-        websocket_clients: Query<&WebsocketClient<TSendables>>,
-        sessions: Query<(Entity, &Session<TSendables>)>,
+        websocket_clients: Query<&WebsocketClient>,
+        sessions: Query<(Entity, &Connection)>,
         mut commands: Commands,
     ) {
         for session in websocket_clients
@@ -52,7 +31,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
                 SessionMessage::Remove(session_id) => {
                     let session = sessions
                         .iter()
-                        .find(|(_, s)| s.get_session_id() == session_id);
+                        .find(|(_, s)| s.get_connection_id() == session_id);
                     if let Some((entity, _)) = session {
                         commands.entity(entity).despawn();
                     }
@@ -62,7 +41,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
     }
 
     fn handle_client_states(
-        websocket_clients: Query<(Entity, &WebsocketClient<TSendables>)>,
+        websocket_clients: Query<(Entity, &WebsocketClient)>,
         mut commands: Commands,
     ) {
         for (entity, client) in websocket_clients {

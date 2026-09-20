@@ -1,12 +1,9 @@
 use bevy::{ecs::component::Component, log::info};
-use bevy_hookup_core::{hook_session::SessionMessenger, session_action::SessionAction};
-use bincode::{
-    config,
-    serde::{decode_from_slice, encode_to_vec},
+use bevy_hookup_core::connection::{
+    connection_messenger::ConnectionMessenger, remote_action::RemoteAction,
 };
 use crossbeam::channel::{Receiver, unbounded};
 use futures_util::{SinkExt, StreamExt};
-use serde::{Serialize, de::DeserializeOwned};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
@@ -17,15 +14,12 @@ use crate::{
 
 #[derive(Component)]
 #[require(WebsocketServerState)]
-pub struct WebsocketServer<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone>
-{
-    session_receiver: Receiver<SessionMessage<TSendables>>,
+pub struct WebsocketServer {
+    session_receiver: Receiver<SessionMessage>,
     state_receiver: Receiver<WebsocketServerState>,
 }
 
-impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + Sized>
-    WebsocketServer<TSendables>
-{
+impl WebsocketServer {
     pub fn new_with_port(port: u16) -> Self {
         let full_address = format!("0.0.0.0:{port}");
         Self::new(full_address)
@@ -58,12 +52,12 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
                     };
 
                     let (ws_sender, mut ws_receiver) = mpsc::unbounded_channel();
-                    let session = WebsocketSession::<TSendables>::new(ws_sender);
-                    let channels = session.get_channels();
-                    let session_id = session.get_session_id();
+                    let session = WebsocketSession::new(ws_sender);
+                    let incoming_sender = session.incoming_sender.clone();
+                    let session_id = session.get_connection_id();
 
                     session_sender
-                        .try_send(SessionMessage::Add(session.to_session()))
+                        .try_send(SessionMessage::Add(session.to_connection()))
                         .expect("Unbounded");
 
                     loop {
@@ -77,21 +71,19 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
                                     continue;
                                 }
 
-                                let Ok((data, _)) = decode_from_slice::<Vec<SessionAction<TSendables>>, _>(
-                                    &msg.into_data(),
-                                    config::standard(),
-                                ) else {
+                                let Ok(data) = postcard::from_bytes::<'_, RemoteAction>(&msg.into_data()) else {
                                     break;
                                 };
 
-                                data.into_iter().for_each(|sa| channels.sender.try_send(sa).expect("unbounded"));
+                                incoming_sender.try_send(data).expect("unbounded");
                             }
                             data = ws_receiver.recv() => {
                                 let Some(data) = data else {
                                     continue;
                                 };
 
-                                let Ok(bytes) = encode_to_vec(data, config::standard()) else {
+                                let bytes = Vec::new();
+                                let Ok(bytes) = postcard::to_extend(&data, bytes) else {
                                     break;
                                 };
 
@@ -121,7 +113,7 @@ impl<TSendables: Serialize + DeserializeOwned + Send + Sync + 'static + Clone + 
         }
     }
 
-    pub fn get_session_messages(&self) -> impl Iterator<Item = SessionMessage<TSendables>> {
+    pub fn get_session_messages(&self) -> impl Iterator<Item = SessionMessage> {
         self.session_receiver.try_iter()
     }
 
