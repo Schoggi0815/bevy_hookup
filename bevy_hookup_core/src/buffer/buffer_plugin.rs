@@ -66,12 +66,12 @@ impl<
             .configure_sets(
                 FixedUpdate,
                 RecieveBufferSystems::<TComponent>::default()
-                    .after(ReceiveComponentSystems::<TComponent>::default()),
+                    .after(ReceiveComponentSystems::<Buffered<TComponent>>::default()),
             )
             .configure_sets(
                 FixedUpdate,
                 SendBufferSystems::<TComponent>::default()
-                    .before(SendComponentSystems::<TComponent>::default()),
+                    .before(SendComponentSystems::<Buffered<TComponent>>::default()),
             );
     }
 }

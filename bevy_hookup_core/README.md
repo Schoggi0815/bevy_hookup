@@ -135,7 +135,7 @@ fn main() {
             HookupCorePlugin,
             // Notice again the const generic. Same concept as with the component applies here, make sure no other even plugin has the same event id.
             // The component and event ids aren't conflicting, you can have a component and event with the same id with no issues.
-            HookupEventPlugin::<TestEvent, 0>::default(),
+            HookupEventPlugin::<TEvent, 0>::default(),
         ))
         .run();
 }
