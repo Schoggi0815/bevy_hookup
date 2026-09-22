@@ -51,7 +51,7 @@ impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_I
         event: On<SendEvent<TEvent>>,
         connections: Query<&mut Connection>,
         client_id: Res<ClientId>,
-    ) -> Result {
+    ) {
         let event = event.event();
         for mut connection in connections {
             if !event
@@ -68,10 +68,8 @@ impl<TEvent: Send + Sync + 'static + Serialize + DeserializeOwned, const EVENT_I
                 event.event_id,
                 event.timestamp,
                 event.client_filter.clone(),
-            )?;
+            );
         }
-
-        Ok(())
     }
 
     fn check_session_channels(

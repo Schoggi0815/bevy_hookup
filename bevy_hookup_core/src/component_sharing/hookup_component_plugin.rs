@@ -140,12 +140,12 @@ impl<
         >,
         connections: Query<&mut Connection>,
         client_id: Res<ClientId>,
-    ) -> Result {
+    ) {
         let Ok((removed_entity, origin_client, entity_filter, component_filter)) =
             sync_entities.get(trigger.entity)
         else {
             warn!("Removed Owner not found!");
-            return Ok(());
+            return;
         };
 
         let origin = origin_client.map_or(*client_id, |oc| oc.0);
@@ -165,10 +165,8 @@ impl<
                 removed_entity.sync_id,
                 ComponentTypeId(COMPONENT_ID),
                 origin,
-            )?;
+            );
         }
-
-        Ok(())
     }
 
     pub fn send_owned(
@@ -186,7 +184,7 @@ impl<
         >,
         mut connections: Query<&mut Connection>,
         client_id: Res<ClientId>,
-    ) -> Result {
+    ) {
         for (
             mut share_component,
             component,
@@ -231,24 +229,24 @@ impl<
                         ComponentTypeId(COMPONENT_ID),
                         component.into_inner(),
                         origin,
-                    )?;
+                    );
                     share_component
                         .on_sessions
                         .push(session.get_connection_id());
                 } else if is_allowed && is_on {
-                    session.componend_updated(
+                    session.component_updated(
                         sync_entity.sync_id,
                         ComponentTypeId(COMPONENT_ID),
                         component.into_inner(),
                         origin,
-                    )?;
+                    );
                 } else if is_on && !is_allowed {
                     if is_entity_allowed {
                         session.component_removed(
                             sync_entity.sync_id,
                             ComponentTypeId(COMPONENT_ID),
                             origin,
-                        )?;
+                        );
                     }
                     share_component.on_sessions = share_component
                         .on_sessions
@@ -259,8 +257,6 @@ impl<
                 }
             }
         }
-
-        Ok(())
     }
 
     fn check_session_channels(

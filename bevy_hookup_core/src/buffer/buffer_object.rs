@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 pub struct BufferObject<TComponent> {
     pub component: TComponent,
     pub index: u64,
-    pub last_changed: bool,
 }
 
 impl<TComponent> BufferObject<TComponent> {
@@ -13,7 +12,6 @@ impl<TComponent> BufferObject<TComponent> {
         Self {
             component,
             index: 0,
-            last_changed: false,
         }
     }
 }

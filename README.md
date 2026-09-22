@@ -11,11 +11,11 @@ This repo consists of multiple crates:
 - `bevy_hookup_messenger_websocket`: A websocket implementation for the session. It has a server and client part, but they are only different when building the connection, the sharing of entities and components works in both directions the same way.
 - `bevy_hookup_messenger_steamworks`: A steamworks implementation for the session. This uses bevy-steamworks as a base to implement peer to peer messenging.
 
-The core library supports practically any network topology and protocol and leaves the decision of the networking architecture on the user.
+The core library supports practically any network topology and protocol and leaves the decision of the networking architecture to the user.
 
 | bevy  | bevy_hookup_core | bevy_hookup_messenger_websocker | bevy_hookup_messenger_steamworks |
 |-------|------------------|---------------------------------|----------------------------------|
-| 0.19  | 6.0.0            | 3.0.0                           | 2.0.0                            |
+| 0.19  | 6.x.x            | 3.x.x                           | 2.x.x                            |
 
 ## Usage
 

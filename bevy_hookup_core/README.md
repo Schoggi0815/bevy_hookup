@@ -118,7 +118,7 @@ fn main() {
 }
 ```
 
-The resharing works by simply attaching a `SyncEntityOwner` to every `SyncEntity` and have a read filter that filters out the connection it came from. Every shared component will of course also be continuosly shared. This will spread the Entity and Components across the network and can of course also work if you are multiple different messengers.
+The resharing works by simply attaching a `SyncEntityOwner` to every `SyncEntity` and have a read filter that filters out the connection it came from. Every shared component will of course also be continuosly shared. This will spread the Entity and Components across the network and can of course also work if you have multiple different messengers.
 
 If you need your client id, there is a `ClientId` resource registered in the app, which you can use. To get the connection ids, you can simply query all the `Connection` components and get their ids from them.
 
@@ -165,8 +165,7 @@ The resahring will of course also make sure that the `ReceiveComponentSystems<TC
 There also exists a buffering helper that you can use for components that you don't want to have inconsistent updates, like a position for example.
 For that you want to register the `BufferPlugin<TComponent, COMPONENT_ID, BUFFER_SIIZE>` plugin.
 Notice the buffer size constant of the plugin, you can adjust that to your needs, a buffer size of 1 means that exactly 1 copy is stored every FixedUpdate, so with a buffer size of 6 the network can take 6 FixedUpdate steps before you would notice any jittering.
-Now with the plugin registered you no longer need to register any `HookupComponentPlugin` yourself.
-And instead of adding a `ShareComponent<TComponent>` you want to use `ShareComponent<BufferObject<TComponent>>`.
+Now with the plugin registered you no longer need to register any `HookupComponentPlugin` yourself, but you can still add the `ReshareComponentPlugin` if you are in need of resharing.
 
-With all of that you can the look for a `Buffered<TComponent>` on the client end, that will have the buffered value.
+With all of that you can the look for a `TComponent` on the client end, that will have the buffered value.
 Now make sure to use the `ReceiveBufferSystems<TComponent>` and `SendBufferSystems<TComponent>` when dealing with the ordering of systems that use buffered components.

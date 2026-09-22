@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bevy::{ecs::entity_disabling::Disabled, prelude::*};
 
 use crate::{
@@ -51,11 +53,11 @@ fn send_removed_entites(
     >,
     connections: Query<&mut Connection>,
     client_id: Res<ClientId>,
-) -> Result {
+) {
     let Ok((removed_entity, entity_origin, connection_filter)) = sync_entities.get(trigger.entity)
     else {
         warn!("Couldn't find removed sync entity.");
-        return Ok(());
+        return;
     };
 
     for mut connection in connections {
@@ -65,10 +67,8 @@ fn send_removed_entites(
 
         let origin = entity_origin.map_or(*client_id, |eo| eo.0);
 
-        connection.entity_removed(removed_entity.sync_id, origin)?;
+        connection.entity_removed(removed_entity.sync_id, origin);
     }
-
-    Ok(())
 }
 
 fn send_entites(
@@ -92,7 +92,7 @@ fn send_entites(
         ),
     >,
     client_id: Res<ClientId>,
-) -> Result {
+) {
     for (
         mut owner,
         sync,
@@ -109,7 +109,7 @@ fn send_entites(
             let in_session = owner.on_connections.contains(&session_id);
             let allowed_in_session = connection_filter.is_allowed(&session_id);
             if in_session && !allowed_in_session {
-                session.entity_removed(sync.sync_id, origin)?;
+                session.entity_removed(sync.sync_id, origin);
                 owner.on_connections = owner
                     .on_connections
                     .clone()
@@ -122,7 +122,7 @@ fn send_entites(
                     origin,
                     client_read_filter.0.clone(),
                     client_write_filter.0.clone(),
-                )?;
+                );
                 owner.on_connections.push(session_id);
             } else if in_session && allowed_in_session {
                 session.entity_updated(
@@ -130,12 +130,10 @@ fn send_entites(
                     origin,
                     client_read_filter.0.clone(),
                     client_write_filter.0.clone(),
-                )?;
+                );
             }
         }
     }
-
-    Ok(())
 }
 
 fn init_session(
@@ -174,7 +172,7 @@ fn init_session(
                 origin,
                 client_read_filter.0.clone(),
                 client_write_filter.0.clone(),
-            )?;
+            );
             owner.on_connections.push(connection.get_connection_id());
         }
     }
@@ -197,6 +195,8 @@ fn check_entity_channel(
     client_id: Res<ClientId>,
 ) {
     for connection in connections {
+        let mut added_map = HashMap::new();
+
         for (action, id, origin_client_id) in connection.messages().filter_map(|ra| match ra {
             RemoteAction::Entity {
                 action,
@@ -234,7 +234,12 @@ fn check_entity_channel(
                         continue;
                     }
 
-                    let mut entity_commands = commands.spawn((
+                    let mut entity_commands = match added_map.get(id) {
+                        Some(entity) => commands.entity(*entity),
+                        None => commands.spawn_empty(),
+                    };
+
+                    entity_commands.insert((
                         SyncEntity::new_from_id(*id),
                         EntityOrigin(connection.get_connection_id()),
                         EntityOrigin(*origin_client_id),
@@ -245,6 +250,8 @@ fn check_entity_channel(
                     if !client_read_filter.is_allowed(&client_id) {
                         entity_commands.insert(Disabled);
                     }
+
+                    added_map.insert(id, entity_commands.id());
                 }
                 EntityAction::Remove => {
                     let Some((sync_entity, ..)) = sync_entity else {

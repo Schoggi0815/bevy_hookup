@@ -10,7 +10,6 @@ use crate::filter::Filter;
 use crate::{
     connection::connection_id::ConnectionId, entity_sharing::sync_entity_id::SyncEntityId,
 };
-use bevy::ecs::error::Result;
 use bevy::log::warn;
 use bevy::prelude::Component;
 use crossbeam::channel::Receiver;
@@ -24,7 +23,7 @@ pub mod remote_action;
 
 #[derive(Component)]
 pub struct Connection {
-    messenger: Box<dyn ConnectionMessenger + Send + Sync>,
+    pub(crate) messenger: Box<dyn ConnectionMessenger + Send + Sync>,
     current_messanges: Vec<RemoteAction>,
     pub(super) incoming: Receiver<RemoteAction>,
 }
@@ -51,16 +50,17 @@ impl Connection {
         client_id: ClientId,
         client_read_filter: Filter<ClientId>,
         client_write_filter: Filter<ClientId>,
-    ) -> Result {
-        self.messenger.send_action(RemoteAction::Entity {
+    ) {
+        if let Err(error) = self.messenger.send_action(RemoteAction::Entity {
             action: EntityAction::AddOrUpdate {
                 client_read_filter,
                 client_write_filter,
             },
             id: sync_id,
             client_id,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send entity added message: {}", error);
+        }
     }
 
     pub fn entity_updated(
@@ -69,25 +69,27 @@ impl Connection {
         client_id: ClientId,
         client_read_filter: Filter<ClientId>,
         client_write_filter: Filter<ClientId>,
-    ) -> Result {
-        self.messenger.send_action(RemoteAction::Entity {
+    ) {
+        if let Err(error) = self.messenger.send_action(RemoteAction::Entity {
             action: EntityAction::AddOrUpdate {
                 client_read_filter,
                 client_write_filter,
             },
             id: sync_id,
             client_id,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send entity updated message: {}", error);
+        }
     }
 
-    pub fn entity_removed(&mut self, sync_id: SyncEntityId, client_id: ClientId) -> Result {
-        self.messenger.send_action(RemoteAction::Entity {
+    pub fn entity_removed(&mut self, sync_id: SyncEntityId, client_id: ClientId) {
+        if let Err(error) = self.messenger.send_action(RemoteAction::Entity {
             action: EntityAction::Remove,
             id: sync_id,
             client_id,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send entity removed message: {}", error);
+        }
     }
 
     fn serialize<T: 'static + Serialize>(&mut self, data: &T) -> Option<Vec<u8>> {
@@ -106,40 +108,46 @@ impl Connection {
         component_type_id: ComponentTypeId,
         component_data: &T,
         client_id: ClientId,
-    ) -> Result {
+    ) {
         let Some(component_data_raw) = self.serialize(component_data) else {
-            return Ok(());
+            warn!("Failed to serialize component data");
+
+            return;
         };
         let component_data_raw = component_data_raw.to_vec();
 
-        self.messenger.send_action(RemoteAction::Component {
+        if let Err(error) = self.messenger.send_action(RemoteAction::Component {
             action: ComponentAction::AddOrUpdate { component_data_raw },
             component_type_id,
             entity_id,
             client_id,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send component added message: {}", error);
+        }
     }
 
-    pub fn componend_updated<T: 'static + Serialize>(
+    pub fn component_updated<T: 'static + Serialize>(
         &mut self,
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
         component_data: &T,
         client_id: ClientId,
-    ) -> Result {
+    ) {
         let Some(component_data_raw) = self.serialize(component_data) else {
-            return Ok(());
+            warn!("Failed to serialize component data");
+
+            return;
         };
         let component_data_raw = component_data_raw.to_vec();
 
-        self.messenger.send_action(RemoteAction::Component {
+        if let Err(error) = self.messenger.send_action(RemoteAction::Component {
             action: ComponentAction::AddOrUpdate { component_data_raw },
             component_type_id,
             entity_id,
             client_id,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send component updated message: {}", error);
+        }
     }
 
     pub fn component_removed(
@@ -147,14 +155,15 @@ impl Connection {
         entity_id: SyncEntityId,
         component_type_id: ComponentTypeId,
         client_id: ClientId,
-    ) -> Result {
-        self.messenger.send_action(RemoteAction::Component {
+    ) {
+        if let Err(error) = self.messenger.send_action(RemoteAction::Component {
             action: ComponentAction::Remove,
             component_type_id,
             entity_id,
             client_id,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send component removed message: {}", error);
+        }
     }
 
     pub fn send_event<T: 'static + Serialize>(
@@ -165,21 +174,24 @@ impl Connection {
         event_id: EventId,
         event_timestamp: EventTimestamp,
         client_filter: Filter<ClientId>,
-    ) -> Result {
+    ) {
         let Some(event_data_raw) = self.serialize(event_data) else {
-            return Ok(());
+            warn!("Failed to serialize event data");
+
+            return;
         };
         let event_data_raw = event_data_raw.to_vec();
 
-        self.messenger.send_action(RemoteAction::SendEvent {
+        if let Err(error) = self.messenger.send_action(RemoteAction::SendEvent {
             event_type_id,
             event_data_raw,
             client_id,
             event_id,
             timestamp: event_timestamp,
             client_filter,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send event message: {}", error);
+        }
     }
 
     pub fn send_event_raw(
@@ -190,16 +202,17 @@ impl Connection {
         event_id: EventId,
         event_timestamp: EventTimestamp,
         client_filter: Filter<ClientId>,
-    ) -> Result {
-        self.messenger.send_action(RemoteAction::SendEvent {
+    ) {
+        if let Err(error) = self.messenger.send_action(RemoteAction::SendEvent {
             event_type_id,
             event_data_raw,
             client_id,
             event_id,
             timestamp: event_timestamp,
             client_filter,
-        })?;
-        Ok(())
+        }) {
+            warn!("Failed to send raw event message: {}", error);
+        }
     }
 
     pub fn messages(&self) -> impl Iterator<Item = &RemoteAction> {

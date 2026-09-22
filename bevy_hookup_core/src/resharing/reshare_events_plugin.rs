@@ -30,7 +30,7 @@ pub struct ReshareEvent {
     pub from_client: ClientId,
 }
 
-fn on_reshare_event(event: On<ReshareEvent>, connections: Query<&mut Connection>) -> Result {
+fn on_reshare_event(event: On<ReshareEvent>, connections: Query<&mut Connection>) {
     for mut connection in connections {
         if event.from_connection == connection.get_connection_id() {
             continue;
@@ -43,8 +43,6 @@ fn on_reshare_event(event: On<ReshareEvent>, connections: Query<&mut Connection>
             event.event_id,
             event.timestamp,
             event.client_filter.clone(),
-        )?;
+        );
     }
-
-    Ok(())
 }
