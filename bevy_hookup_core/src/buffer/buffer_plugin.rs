@@ -147,7 +147,7 @@ impl<
     }
 
     fn send_removed_owned(
-        trigger: On<Remove, ShareComponent<TComponent>>,
+        trigger: On<Remove<ShareComponent<TComponent>>>,
         sync_entities: Query<
             (
                 &SyncEntity,

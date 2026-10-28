@@ -42,7 +42,7 @@ impl Plugin for HookupEntityPlugin {
 }
 
 fn send_removed_entites(
-    trigger: On<Remove, SyncEntityOwner>,
+    trigger: On<Remove<SyncEntityOwner>>,
     sync_entities: Query<
         (
             &SyncEntity,

@@ -57,7 +57,7 @@ impl<TComponent> ReshareComponentPlugin<TComponent> {
         }
     }
 
-    fn reshare_remove(event: On<Remove, TComponent>, mut commands: Commands)
+    fn reshare_remove(event: On<Remove<TComponent>>, mut commands: Commands)
     where
         TComponent: Send + Sync + 'static + Component,
     {

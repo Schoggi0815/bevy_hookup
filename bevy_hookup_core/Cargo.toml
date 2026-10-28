@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_core"
-version = "6.1.0"
+version = "6.2.0"
 edition = "2024"
 description = "The core library of the bevy_hookup library"
 readme = "../README.md"
@@ -10,7 +10,7 @@ keywords = ["bevy", "multiplayer", "networking"]
 categories = ["game-development", "network-programming"]
 
 [dependencies]
-bevy = "0.19.1"
+bevy = "0.20.0"
 crossbeam = "0.8.4"
 itertools = "0.15.0"
 rand = "0.10.2"

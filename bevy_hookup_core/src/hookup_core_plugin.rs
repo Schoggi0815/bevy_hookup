@@ -37,7 +37,7 @@ impl HookupCorePlugin {
     }
 
     pub fn remove_session(
-        trigger: On<Remove, Connection>,
+        trigger: On<Remove<Connection>>,
         connections: Query<&Connection>,
         from_sesions: Query<(Entity, &EntityOrigin<ConnectionId>)>,
         mut commands: Commands,
