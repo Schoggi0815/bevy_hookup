@@ -12,7 +12,7 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-bevy = "0.20.0"
+bevy = "0.20.1"
 bevy-inspector-egui = "0.38.0"
 bevy_hookup_core = { path = "../../bevy_hookup_core" }
 bevy_hookup_messenger_websocket = { path = "../../bevy_hookup_messenger_websocket" }
