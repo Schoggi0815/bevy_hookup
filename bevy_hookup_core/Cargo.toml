@@ -1,6 +1,6 @@
 [package]
 name = "bevy_hookup_core"
-version = "6.2.1"
+version = "6.2.2"
 edition = "2024"
 description = "The core library of the bevy_hookup library"
 readme = "../README.md"
@@ -17,3 +17,6 @@ rand = "0.10.3"
 serde = "1.0.229"
 erased-serde = "0.4.11"
 anyhow = "1.0.104"
+
+[features]
+wasm = []

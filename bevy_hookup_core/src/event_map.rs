@@ -1,7 +1,6 @@
-use std::{
-    collections::HashMap,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::collections::HashMap;
+#[cfg(not(feature = "wasm"))]
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use bevy::prelude::*;
 
@@ -23,6 +22,7 @@ impl Default for EventMap {
 }
 
 impl EventMap {
+    #[cfg(not(feature = "wasm"))]
     fn cutoff_timestamp(&self) -> EventTimestamp {
         EventTimestamp(
             SystemTime::now()
@@ -31,6 +31,11 @@ impl EventMap {
                 .as_secs()
                 - self.retention_time_secs,
         )
+    }
+
+    #[cfg(feature = "wasm")]
+    fn cutoff_timestamp(&self) -> EventTimestamp {
+        EventTimestamp(0)
     }
 
     pub fn valid(&self, id: &EventId, timestamp: &EventTimestamp) -> bool {

@@ -1,3 +1,4 @@
+#[cfg(not(feature = "wasm"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bevy::{prelude::Deref, reflect::Reflect};
@@ -62,6 +63,7 @@ impl Default for EventId {
 pub struct EventTimestamp(pub u64);
 
 impl Default for EventTimestamp {
+    #[cfg(not(feature = "wasm"))]
     fn default() -> Self {
         Self(
             SystemTime::now()
@@ -69,5 +71,10 @@ impl Default for EventTimestamp {
                 .expect("Are you time traveling???")
                 .as_secs(),
         )
+    }
+
+    #[cfg(feature = "wasm")]
+    fn default() -> Self {
+        Self(0)
     }
 }
