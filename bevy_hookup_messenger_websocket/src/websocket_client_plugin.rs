@@ -46,6 +46,7 @@ impl WebsocketClientPlugin {
     ) {
         for (entity, client) in websocket_clients {
             for new_state in client.get_state_updates() {
+                info!("Client state updated: {:?}", new_state);
                 commands.entity(entity).insert(new_state);
             }
         }

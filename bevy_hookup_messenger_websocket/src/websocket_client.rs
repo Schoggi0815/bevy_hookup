@@ -1,12 +1,10 @@
-use core::time;
-
-use bevy::{ecs::component::Component, log::info, tasks::futures_lite::StreamExt};
+use bevy::{ecs::component::Component, log::info};
 use bevy_hookup_core::connection::{
     connection_messenger::ConnectionMessenger, remote_action::RemoteAction,
 };
 use crossbeam::channel::{Receiver, unbounded};
-use futures_util::SinkExt;
-use tokio::{sync::mpsc, time::timeout};
+use futures_util::{SinkExt, StreamExt};
+use tokio::sync::mpsc;
 use tokio_tungstenite_wasm::{Message, connect};
 use tokio_with_wasm::alias as tokio;
 
@@ -37,7 +35,7 @@ impl WebsocketClient {
         tokio::spawn(async move {
             let websocket = connect(address).await;
 
-            let Ok(mut websocket) = websocket else {
+            let Ok(websocket) = websocket else {
                 state_sender
                     .send(WebsocketClientState::Failed)
                     .expect("Unbounded");
@@ -57,33 +55,37 @@ impl WebsocketClient {
                 .try_send(SessionMessage::Add(session.to_connection()))
                 .expect("Unbounded");
 
-            loop {
-                let next = timeout(time::Duration::from_millis(15), websocket.next()).await;
+            let (mut ws_sender, mut ws_reciever) = websocket.split();
 
-                if let Ok(Some(Ok(msg))) = next {
-                    if !msg.is_binary() {
-                        continue;
+            tokio::spawn(async move {
+                loop {
+                    let next = ws_reciever.next().await;
+
+                    if let Some(Ok(msg)) = next {
+                        if !msg.is_binary() {
+                            continue;
+                        }
+
+                        let Ok(data) = postcard::from_bytes::<'_, RemoteAction>(&msg.into_data())
+                        else {
+                            break;
+                        };
+
+                        incoming_sender.try_send(data).expect("unbounded");
                     }
-
-                    let Ok(data) = postcard::from_bytes::<'_, RemoteAction>(&msg.into_data())
-                    else {
-                        break;
-                    };
-
-                    incoming_sender.try_send(data).expect("unbounded");
                 }
+            });
 
-                while let Ok(data) = outgoing_receiver.try_recv() {
-                    let bytes = Vec::new();
-                    let Ok(bytes) = postcard::to_extend(&data, bytes) else {
-                        break;
-                    };
+            while let Some(data) = outgoing_receiver.recv().await {
+                let bytes = Vec::new();
+                let Ok(bytes) = postcard::to_extend(&data, bytes) else {
+                    break;
+                };
 
-                    let message = Message::binary(bytes);
+                let message = Message::binary(bytes);
 
-                    if websocket.send(message).await.is_err() {
-                        break;
-                    }
+                if ws_sender.send(message).await.is_err() {
+                    break;
                 }
             }
 

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Debug)]
 pub enum WebsocketClientState {
     #[default]
     Connecting,
