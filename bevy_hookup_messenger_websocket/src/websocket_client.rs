@@ -73,7 +73,7 @@ impl WebsocketClient {
                     incoming_sender.try_send(data).expect("unbounded");
                 }
 
-                if let Ok(data) = outgoing_receiver.try_recv() {
+                while let Ok(data) = outgoing_receiver.try_recv() {
                     let bytes = Vec::new();
                     let Ok(bytes) = postcard::to_extend(&data, bytes) else {
                         break;
@@ -81,7 +81,7 @@ impl WebsocketClient {
 
                     let message = Message::binary(bytes);
 
-                    if let Err(_) = websocket.send(message).await {
+                    if websocket.send(message).await.is_err() {
                         break;
                     }
                 }

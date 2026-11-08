@@ -89,7 +89,7 @@ impl WebsocketServer {
 
                                 let message = Message::binary(bytes);
 
-                                if let Err(_) = websocket.send(message).await {
+                                if websocket.send(message).await.is_err() {
                                     break;
                                 }
                             }
